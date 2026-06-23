@@ -16,7 +16,7 @@ column is GRC-accuracy commentary for the portfolio writeup, not a re-label.
 | **SC-28** — Protection of Information at Rest | `aws_s3_bucket_server_side_encryption_configuration` on **both** buckets (AES-256) | Default server-side encryption at rest | Clean fit. SC-28(1) if/when KMS-managed keys are used. | `plan.json` encryption rule; SC-28 attestation output (algorithm in effect) |
 | **AC-3** — Access Enforcement | `aws_s3_bucket_public_access_block` on **both** buckets, all four flags `true` | Blocks public exposure on all four vectors | Fit. AC-6 (least privilege) and SC-7 (boundary protection) are secondary mappings. | `plan.json` four flags all true: `block_public_acls`, `block_public_policy`, `ignore_public_acls`, `restrict_public_buckets` |
 | **CM-6 (part 1)** — Configuration Settings | `aws_s3_bucket_versioning` on the **primary** | Prior object states recoverable/auditable | **Imprecise but assignment-intentional.** Versioning is data durability/integrity; **CP-9** (System Backup) or **SI-12** (Information Management & Retention) is the tighter control. Kept as CM-6 per assignment. | `plan.json` versioning `Enabled`; `verify.sh` shows `Enabled` |
-| **CM-6 (part 2)** — Configuration Settings | provider `default_tags` block → `Project`, `Environment`, `ManagedBy`, `ComplianceScope` on every taggable resource | Enforced baseline metadata, can't forget on new resources | Good fit for CM-6. Also maps to ISO A.5.9 (asset inventory) via `ComplianceScope`. **Status: NOT yet implemented — `main.tf:12` is still a TODO.** | `plan.json` four tags present on each resource |
+| **CM-6 (part 2)** — Configuration Settings | provider `default_tags` block → `Project`, `Environment`, `ManagedBy`, `ComplianceScope` on every taggable resource | Enforced baseline metadata, can't forget on new resources | Good fit for CM-6. Also maps to ISO A.5.9 (asset inventory) via `ComplianceScope`. Implemented in `solution/main.tf` (`default_tags`). | `plan.json` four tags present on each resource |
 | **AU-3 + AU-6** — Content of Audit Records / Audit Review | `aws_s3_bucket_ownership_controls` + `aws_s3_bucket_acl` (`log-delivery-write`) on the **log** bucket, then `aws_s3_bucket_logging` on the **primary** pointing at it | Captures S3 access logs to a dedicated, protected log bucket | **Split is more precise:** enabling capture = **AU-2** (Event Logging) + **AU-12** (Audit Record Generation); protecting the log bucket (ownership + ACL) = **AU-9** (Protection of Audit Information). **AU-6** (review/analysis) is an operational/process control the infra *enables* but does not by itself satisfy. AU-3 governs record *fields*, which S3 sets, not you. | `plan.json` logging block on primary; `verify.sh` confirms logging target |
 
 ## Cross-framework crosswalk
@@ -42,10 +42,15 @@ rule IDs are the stable, machine-checkable anchors.
 - **SC-28 attestation output:** the encryption algorithm in effect, surfaced as a
   Terraform output — machine-readable proof of encryption.
 
-## Open items vs. the assignment
+## Implementation status
 
-1. `default_tags` block is still a TODO (`main.tf:12-14`) — CM-6 part 2 is **not yet
-   enforced**.
-2. Controls SC-28 / AC-3 / CM-6 / AU-3+AU-6 resources are stubbed (`main.tf:34-45`) —
-   the two base buckets exist but carry no controls yet.
-3. SC-28 attestation output not yet added to `outputs.tf`.
+All five controls are implemented in `solution/`:
+
+1. CM-6 part 2 — `default_tags` block enforces the four tags (`solution/main.tf`).
+2. SC-28 / AC-3 / CM-6 part 1 / AU-3+AU-6 — encryption, public-access blocks,
+   versioning, and ownership-controls → ACL → logging are all present on the
+   data and log buckets (`solution/main.tf`).
+3. SC-28 attestation surfaced as the `encryption_algorithm` output
+   (`solution/outputs.tf`).
+
+Every control is reflected in `evidence/plan.json` (`terraform show -json`).
