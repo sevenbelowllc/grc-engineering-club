@@ -1,7 +1,7 @@
 terraform {
-  # >= 1.10 because the backend uses native S3 state locking (use_lockfile).
-  # The starter stays at >= 1.6 since it has no backend.
-  required_version = ">= 1.10"
+  # Local backend (state stays in this directory, gitignored). >= 1.6 is enough;
+  # no remote S3 backend / native state locking is required for this submission.
+  required_version = ">= 1.6"
   required_providers {
     aws    = { source = "hashicorp/aws", version = "~> 5.0" }
     random = { source = "hashicorp/random", version = "~> 3.6" }

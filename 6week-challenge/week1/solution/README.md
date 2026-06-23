@@ -1,13 +1,13 @@
-# week-1 — reference solution
+# week-1 — Terraform module
 
-The complete, working implementation of all five week-1 controls. This is the
-**answer key** — do not ship it as the starter. Members build the controls
-themselves in `../main.tf`; this directory is for instructors and for generating
-the reference `evidence/plan.json`.
+The complete, working implementation of all five week-1 NIST 800-53 controls on
+an S3 **data** bucket plus a dedicated S3 **access-log** bucket. Running
+`terraform plan` here regenerates the reference `evidence/plan.json` that the
+rest of the pipeline (week 2) reads.
 
-Unlike the starter, this module stores state in the **remote S3 backend** created
-by `../../bootstrap`. It therefore requires Terraform **≥ 1.10** (native
-`use_lockfile` locking).
+State uses the **local backend** (`terraform.tfstate` in this directory, which is
+gitignored) — no remote state bucket or bootstrap step is required. Terraform
+**≥ 1.6**.
 
 ## Controls implemented
 
@@ -25,23 +25,20 @@ Plus the SC-28 attestation output (`encryption_algorithm`). See
 ## Use
 
 ```bash
-# 0. State bucket must exist first — see ../../bootstrap/README.md
-cd ../../bootstrap && terraform output state_bucket_name   # note the name
+cp terraform.tfvars.example terraform.tfvars   # edit project/env/region
 
-# 1. Point this module at the backend
-cd ../week-1/solution
-cp backend.hcl.example backend.hcl                         # paste bucket name + region
-cp terraform.tfvars.example terraform.tfvars               # edit project/env/region
-terraform init -backend-config=backend.hcl
+# Validate (no AWS credentials needed)
+terraform init
+terraform validate
 
-# 2. Generate evidence (week 2 reads this)
+# Generate evidence (week 2 reads this)
 terraform plan -out tfplan
 mkdir -p ../evidence
 terraform show -json tfplan > ../evidence/plan.json
 
-# 3. (optional) apply + verify live
+# (optional) apply + verify live — requires AWS credentials
 terraform apply tfplan
-terraform output encryption_algorithm                      # -> "AES256"  (SC-28 proof)
+terraform output encryption_algorithm          # -> "AES256"  (SC-28 proof)
 ```
 
 `../verify.sh` runs the three live checks (encryption, versioning, public-access

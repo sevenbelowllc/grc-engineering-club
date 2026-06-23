@@ -1,7 +1,0 @@
-# Copy this file to backend.hcl and fill in the bucket from the bootstrap output:
-#   cd ../../bootstrap && terraform output state_bucket_name
-# Then: terraform init -backend-config=backend.hcl
-#
-# backend.hcl is gitignored (the account id in the bucket name is account-specific).
-bucket = "PLACEHOLDER_STATE_BUCKET_NAME"
-region = "us-west-2"

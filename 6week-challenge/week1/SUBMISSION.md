@@ -32,21 +32,19 @@ Benchmark, PCI-DSS, SOC 2, ISO 27001, and HIPAA.
 
 | Path | Purpose |
 |---|---|
-| `main.tf`, `variables.tf`, `outputs.tf` | Starter skeleton (TODOs intact — controls are the exercise) |
-| `solution/` | **Reference implementation** of all five controls + SC-28 output |
+| `solution/` | **Reference implementation** of all five controls + SC-28 output (local backend) |
 | `evidence/plan.json` | Machine-readable proof (`terraform show -json`) — week 2 reads this |
 | `compliance-mapping.md` | NIST → CIS/PCI/SOC2/ISO/HIPAA control crosswalk |
 | `verify.sh` | Post-apply live checks (encryption, versioning, public-access block) |
 
-> The worked controls live in **`solution/`**, not the top-level `main.tf` (the
-> top-level file is the starter, deliberately left with TODOs). Point reviewers at
-> `solution/` and `evidence/plan.json`.
+> The worked controls live in **`solution/`**. Point reviewers at `solution/` and
+> `evidence/plan.json`.
 
 ## How to verify
 
 ```bash
-# 1. Configuration is valid
-cd solution && terraform init -backend=false && terraform validate    # Success!
+# 1. Configuration is valid (local backend, no AWS credentials needed)
+cd solution && terraform init && terraform validate    # Success!
 
 # 2. Evidence contains all five controls
 jq -r '.resource_changes[] | "\(.change.actions[0])  \(.address)"' ../evidence/plan.json
@@ -73,19 +71,4 @@ There is no upload portal or review queue. Submission, per the brief, is:
 2. A LinkedIn post tagging **GRC Engineering Club** with **`#GRCEngClubChallenge`**,
    stating one true thing that was harder than expected.
 
-### LinkedIn post — draft (edit before posting; make the "harder than expected" line your own)
 
-> Week 1 of the GRC Engineering Club challenge: I wrote Terraform for an S3
-> bucket that satisfies five NIST 800-53 controls — SC-28 (encryption at rest),
-> AC-3 (public access blocked on all four flags), CM-6 (versioning + enforced
-> tags), and AU-3/AU-6 (access logging) — and emits the proof as JSON from
-> `terraform plan`. No screenshots, no narrative; the evidence is the artifact.
->
-> Harder than expected: the audit-logging control. On modern AWS you can't just
-> turn logging on — the destination bucket needs object-ownership controls set
-> *before* it will accept the `log-delivery-write` ACL, and only then will the
-> logging config attach. Get the order wrong and you get AccessDenied. Naming a
-> control is one skill; sequencing the resources that actually satisfy it is
-> another.
->
-> #GRCEngClubChallenge @GRC Engineering Club
