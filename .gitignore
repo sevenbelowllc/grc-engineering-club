@@ -141,3 +141,57 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Terraform ---
+# Local .terraform directories and plugin caches
+**/.terraform/*
+
+# State files — may contain sensitive values; never commit
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Variable files — may contain secrets. Keep *.example committed.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Plan output files
+*.tfplan
+tfplan
+
+# Override files (local-only overrides)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config and lock file
+.terraformrc
+terraform.rc
+# Note: .terraform.lock.hcl is intentionally NOT ignored — commit it to pin provider versions.
+
+# Partial backend config — contains the account-specific state bucket name.
+# Keep backend.hcl.example tracked.
+**/backend.hcl
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# --- Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Archives / build artifacts ---
+*.zip
+
+# --- Paywalled assignment briefs (do not publish to the public repo) ---
+**/*-email-notes.txt
