@@ -89,6 +89,8 @@ $ opa test policies/ -v
 
 See [`evidence/opa-test.txt`](evidence/opa-test.txt) — `PASS: 6/6`.
 
+![opa test policies/ -v — PASS: 6/6](evidence/week2-opa-test-results.png)
+
 ### Real infrastructure — the actual gate
 
 Unit tests use tiny fixtures. The real test is the Week 1 plan. Both plans below were
