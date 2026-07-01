@@ -1,0 +1,18 @@
+policies/ac3_no_public_aws_test.rego:39:
+data.compliance.ac3_aws.test_missing_pab_denied: PASS (853.625µs)
+
+policies/sc28_encryption_aws_test.rego:24:
+data.compliance.sc28_aws.test_unencrypted_bucket_denied: PASS (818.125µs)
+
+policies/cm6_required_tags_aws_test.rego:28:
+data.compliance.cm6_aws.test_missing_tags_denied: PASS (1.221833ms)
+policies/cm6_required_tags_aws_test.rego:24:
+data.compliance.cm6_aws.test_all_tags_present_passes: PASS (1.346292ms)
+
+policies/sc28_encryption_aws_test.rego:20:
+data.compliance.sc28_aws.test_compliant_bucket_passes: PASS (1.499709ms)
+
+policies/ac3_no_public_aws_test.rego:35:
+data.compliance.ac3_aws.test_complete_pab_passes: PASS (1.73425ms)
+--------------------------------------------------------------------------------
+PASS: 6/6
