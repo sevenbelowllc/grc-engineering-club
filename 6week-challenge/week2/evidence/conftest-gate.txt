@@ -1,0 +1,23 @@
+### Compliant week-1 plan (all three controls pass)
+--- conftest --namespace compliance.sc28_aws evidence/plan-compliant.json
+
+1 test, 1 passed, 0 warnings, 0 failures, 0 exceptions
+--- conftest --namespace compliance.ac3_aws evidence/plan-compliant.json
+
+1 test, 1 passed, 0 warnings, 0 failures, 0 exceptions
+--- conftest --namespace compliance.cm6_aws evidence/plan-compliant.json
+
+1 test, 1 passed, 0 warnings, 0 failures, 0 exceptions
+
+### Broken plan: encryption blocks removed (SC-28 catches it, names both buckets)
+--- conftest --namespace compliance.sc28_aws evidence/plan-broken.json
+FAIL - evidence/plan-broken.json - compliance.sc28_aws - SC-28: aws_s3_bucket 'log' has no matching server-side encryption configuration. Remediation: add an aws_s3_bucket_server_side_encryption_configuration that references it.
+FAIL - evidence/plan-broken.json - compliance.sc28_aws - SC-28: aws_s3_bucket 'primary' has no matching server-side encryption configuration. Remediation: add an aws_s3_bucket_server_side_encryption_configuration that references it.
+
+2 tests, 0 passed, 0 warnings, 2 failures, 0 exceptions
+--- conftest --namespace compliance.ac3_aws evidence/plan-broken.json
+
+1 test, 1 passed, 0 warnings, 0 failures, 0 exceptions
+--- conftest --namespace compliance.cm6_aws evidence/plan-broken.json
+
+1 test, 1 passed, 0 warnings, 0 failures, 0 exceptions
