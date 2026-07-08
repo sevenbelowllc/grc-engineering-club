@@ -1,0 +1,194 @@
+# grc-gate: run the week-2 policy namespaces on every pull request and block
+# the ones that break a control.
+#
+# Why this file lives at the repo root: GitHub Actions only discovers workflows
+# under .github/workflows/ at the repository root. The starter skeleton shipped a
+# copy nested under 6week-challenge/week3/week-3/.github/workflows/, which can
+# never trigger. That copy is kept for reference; THIS file is the live gate.
+#
+# The plan and policies it evaluates live under 6week-challenge/week3/.
+name: grc-gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Minimal by default. contents:read to check out; pull-requests:write so the
+# gate can post its verdict as a PR comment.
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CONFTEST_VERSION: "0.68.2"
+  WEEK3_DIR: 6week-challenge/week3
+
+jobs:
+  grc-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Conftest at a pinned version (never `latest` — a moving version
+      # is not evidence you can reproduce).
+      - name: Install Conftest ${{ env.CONFTEST_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            -o conftest.tar.gz
+          tar -xzf conftest.tar.gz conftest
+          sudo install -m 0755 conftest /usr/local/bin/conftest
+          conftest --version
+
+      # Run the three policy namespaces against the committed plan, capture the
+      # machine-readable result as evidence, and fail closed.
+      #
+      # `set -o pipefail` is the whole trick: Conftest prints its JSON report to
+      # stdout and THEN exits non-zero on any violation. `tee` writes that report
+      # to the evidence file before the non-zero status propagates through the
+      # pipe and fails this step. So we get both — the evidence is saved AND the
+      # gate fails when a control breaks. One run, one source of truth.
+      - name: Run policy gate
+        id: gate
+        run: |
+          set -o pipefail
+          mkdir -p "${WEEK3_DIR}/evidence"
+          conftest test "${WEEK3_DIR}/plan.json" \
+            --policy "${WEEK3_DIR}/policies" \
+            --namespace compliance.sc28_aws \
+            --namespace compliance.ac3_aws \
+            --namespace compliance.cm6_aws \
+            --output json \
+            | tee "${WEEK3_DIR}/evidence/conftest-results.json"
+
+      # Upload the evidence whether the gate passed or failed. The entire point
+      # of CI evidence is that it survives the failure — so `if: always()`.
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grc-gate-evidence
+          path: ${{ env.WEEK3_DIR }}/evidence/
+          if-no-files-found: error
+
+      # Post the verdict onto the PR so a reviewer sees the control result in the
+      # thread, not just a red/green dot. Runs on pass and fail; skipped for
+      # workflow_dispatch (no PR to comment on).
+      - name: Comment gate verdict on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = `${process.env.WEEK3_DIR}/evidence/conftest-results.json`;
+            let failures = 0, rows = [];
+            try {
+              const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+              for (const ns of report) {
+                const f = (ns.failures || []).length;
+                const w = (ns.warnings || []).length;
+                failures += f;
+                rows.push(`| \`${ns.namespace || 'n/a'}\` | ${f} | ${w} |`);
+                for (const msg of (ns.failures || [])) {
+                  rows.push(`| ↳ | \`${(msg.msg || '').replace(/\|/g, '\\|')}\` | |`);
+                }
+              }
+            } catch (e) {
+              rows.push(`| _could not parse results_ | ${e.message} | |`);
+              failures = -1;
+            }
+            const passed = failures === 0;
+            const body = [
+              `## grc-gate: ${passed ? '✅ pass' : '❌ fail'}`,
+              '',
+              `Conftest \`v${process.env.CONFTEST_VERSION}\` · namespaces: \`sc28_aws\`, \`ac3_aws\`, \`cm6_aws\``,
+              '',
+              '| namespace | failures | warnings |',
+              '| --- | --- | --- |',
+              ...rows,
+              '',
+              passed
+                ? '_Every control passed. This PR is mergeable._'
+                : '_A control failed. With branch protection on, this merge is blocked until it is fixed._',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  # ---------------------------------------------------------------------------
+  # STRETCH — keyless plan generation via GitHub OIDC.
+  #
+  # This job does NOT commit a plan. It assumes a read-only AWS role through
+  # GitHub OIDC (no stored keys), generates the plan in CI, and runs the same
+  # gate against it. It is gated on the `AWS_GATE_ROLE_ARN` repo variable, so it
+  # stays dormant (skipped, not failing) until you set that variable after
+  # applying 6week-challenge/week3/oidc/iam-oidc.tf. See oidc/README-oidc.md.
+  # ---------------------------------------------------------------------------
+  grc-gate-oidc:
+    runs-on: ubuntu-latest
+    if: ${{ vars.AWS_GATE_ROLE_ARN != '' }}
+    permissions:
+      contents: read
+      id-token: write   # required to request the OIDC token. Omitting it makes
+                         # the credential exchange fail silently.
+    defaults:
+      run:
+        working-directory: 6week-challenge/week3/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Install Conftest ${{ env.CONFTEST_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            -o conftest.tar.gz
+          tar -xzf conftest.tar.gz conftest
+          sudo install -m 0755 conftest /usr/local/bin/conftest
+
+      - name: Generate the plan in CI
+        run: |
+          set -euo pipefail
+          # Non-secret inputs passed inline — terraform.tfvars is gitignored, so
+          # the build's required vars (no defaults) are supplied here instead.
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan \
+            -var 'project_name=grc-challenge' \
+            -var 'environment=dev' \
+            -var "region=${{ vars.AWS_REGION || 'us-east-1' }}"
+          terraform show -json tfplan > plan.json
+
+      - name: Run policy gate on the CI-generated plan
+        run: |
+          set -o pipefail
+          mkdir -p ../evidence
+          conftest test plan.json \
+            --policy ../policies \
+            --namespace compliance.sc28_aws \
+            --namespace compliance.ac3_aws \
+            --namespace compliance.cm6_aws \
+            --output json \
+            | tee ../evidence/conftest-results-oidc.json
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grc-gate-evidence-oidc
+          path: 6week-challenge/week3/evidence/
+          if-no-files-found: error
