@@ -63,6 +63,18 @@ protection making the red one un-mergeable. Full steps are in
 2. **Red PR** — swap in `plan-broken.json` (encryption removed); SC-28 fails; the
    check goes red; branch protection blocks the merge.
 
+## Evidence
+
+Screenshots of the gate in action live in [`evidence/`](./evidence/); the full
+writeup is in [`SUBMISSION.md`](./SUBMISSION.md).
+
+| Screenshot | Shows |
+| --- | --- |
+| ![green run](evidence/GRCChallenge-week3-grcgate-pass-p1.png) | **Green run** ([PR #3](https://github.com/sevenbelowllc/grc-engineering-club/pull/3)) — Conftest `v0.68.2`, all three namespaces pass. ([part 2](evidence/GRCChallenge-week3-grcgate-pass-p2.png)) |
+| ![red run](evidence/GRCChallenge-week3-grcgate-fail-p1.png) | **Red run** ([PR #4](https://github.com/sevenbelowllc/grc-engineering-club/pull/4)) — SC-28 denies both buckets, exit 1; evidence still uploads. ([part 2](evidence/GRCChallenge-week3-grcgate-fail-p2.png)) |
+| ![merge blocked](evidence/GRCChallenge-week3-failure-evidence.png) | **Merge blocked** — required `grc-gate` check failing, merge button disabled. |
+| ![actions history](evidence/GRCChallenge-week3-grcgate-full-report.png) | **Actions history** — one red run, two green. |
+
 ## Stretch: keyless plan generation via OIDC
 
 The production version does not commit a plan — CI generates it by assuming a
