@@ -8,9 +8,9 @@ only catches *your* mistakes, when you remember to run it. Week 3 moves that che
 to where it can't be skipped — a **GitHub Actions gate that runs on every pull
 request to `main` and blocks the ones that break a control.**
 
-This is the week GRC stops being a meeting. Nobody reviews the change for
-encryption. The pipeline does, in seconds, and a human only gets involved when
-something is actually wrong.
+This moves compliance out of human review entirely: no one has to remember to
+check a change for encryption, because the pipeline decides in seconds and only
+escalates to a person when a control genuinely fails.
 
 The gate — [`.github/workflows/grc-gate.yml`](../../.github/workflows/grc-gate.yml) —
 does four things on every PR:
