@@ -65,8 +65,8 @@ Settings → Branches → Add branch protection rule for `main`:
 - The README section explaining what the gate enforces and what breaking a
   control does.
 - LinkedIn: post both checks side by side, green and red. Tag **GRC Engineering
-  Club**, use **#GRCEngClubChallenge**, and explain why a blocked merge beats a
-  caught mistake.
+  Club**, use **#GRCEngClubChallenge**, and explain why enforcing a control at
+  merge time is stronger than detecting the violation after it lands.
 
 ---
 

@@ -25,10 +25,10 @@ so the job **fails while still saving the evidence**. The result is uploaded as 
 build artifact with `if: always()`, and the verdict is posted as a PR comment.
 
 With branch protection requiring the `grc-gate` check, **a PR that breaks a
-control cannot be merged by anyone until it is fixed.** That sentence is the
-entire value proposition: GRC stops being a meeting. Nobody reviews the change for
-encryption — the pipeline does, in seconds, and a human only gets involved when
-something is actually wrong.
+control cannot be merged until it is fixed** — mechanically, not by reviewer
+discretion. Compliance shifts from something a person has to remember to check on
+each change into something the pipeline enforces automatically in seconds,
+escalating to a human only when a control actually fails.
 
 ## Layout
 
