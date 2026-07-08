@@ -1,0 +1,32 @@
+# grc-gate: run the policy gate on every pull request.
+# This is a skeleton. The steps marked TODO are yours to write. The brief on
+# Patreon explains what each one does and why.
+name: grc-gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  grc-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO: install Conftest (pin a version, do not use latest).
+
+      # TODO: run your three policy namespaces against the committed plan.json.
+      #       Write the results to evidence/conftest-results.json.
+      #       Fail the job if any namespace reports a failure.
+
+      # TODO: upload evidence/ as a build artifact, with `if: always()` so the
+      #       evidence is saved even when the gate fails. That is the point of
+      #       CI evidence: it survives the failure.
+
+      # STRETCH: instead of a committed plan.json, assume an AWS role via OIDC
+      #          (no stored keys) and generate the plan in CI. See the brief.
