@@ -71,7 +71,7 @@ writeup is in [`SUBMISSION.md`](./SUBMISSION.md).
 | Screenshot | Shows |
 | --- | --- |
 | ![green run](evidence/GRCChallenge-week3-grcgate-pass-p1.png) | **Green run** ([PR #3](https://github.com/sevenbelowllc/grc-engineering-club/pull/3)) — Conftest `v0.68.2`, all three namespaces pass. ([part 2](evidence/GRCChallenge-week3-grcgate-pass-p2.png)) |
-| ![red run](evidence/GRCChallenge-week3-grcgate-fail-p1.png) | **Red run** ([PR #4](https://github.com/sevenbelowllc/grc-engineering-club/pull/4)) — SC-28 denies both buckets, exit 1; evidence still uploads. ([part 2](evidence/GRCChallenge-week3-grcgate-fail-p2.png)) |
+| ![red run](evidence/GRCChallenge-week3-grcgate-fail-p1.png) | **Red run** ([PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7)) — SC-28 denies both buckets, exit 1; evidence still uploads. ([part 2](evidence/GRCChallenge-week3-grcgate-fail-p2.png)) |
 | ![merge blocked](evidence/GRCChallenge-week3-failure-evidence.png) | **Merge blocked** — required `grc-gate` check failing, merge button disabled. |
 | ![actions history](evidence/GRCChallenge-week3-grcgate-full-report.png) | **Actions history** — one red run, two green. |
 

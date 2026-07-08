@@ -68,7 +68,7 @@ mergeable. Evidence artifact `grc-gate-evidence` (270 bytes) is attached.
 
 ![Green run — evidence uploaded and the job completes clean](evidence/GRCChallenge-week3-grcgate-pass-p2.png)
 
-### Red PR — SC-28 fails, the merge is blocked ([PR #4](https://github.com/sevenbelowllc/grc-engineering-club/pull/4))
+### Red PR — SC-28 fails, the merge is blocked ([PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7))
 
 `plan.json` has its encryption configuration removed, so `compliance.sc28_aws`
 denies both buckets by name. The gate step exits with code 1 and the job fails.
@@ -114,7 +114,7 @@ skipped until `AWS_GATE_ROLE_ARN` is set, so it never breaks the main path. See
 | --- | --- |
 | [`.github/workflows/grc-gate.yml`](../../.github/workflows/grc-gate.yml) | The gate — the deliverable itself |
 | [PR #3](https://github.com/sevenbelowllc/grc-engineering-club/pull/3) (green) | Compliant plan passes; PR mergeable |
-| [PR #4](https://github.com/sevenbelowllc/grc-engineering-club/pull/4) (red) | Broken plan fails SC-28; merge blocked |
+| [PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7) (red) | Broken plan fails SC-28; merge blocked |
 | `evidence/GRCChallenge-week3-grcgate-pass-p1.png` / `-p2.png` | Green run — all three namespaces pass, evidence uploaded |
 | `evidence/GRCChallenge-week3-grcgate-fail-p1.png` / `-p2.png` | Red run — SC-28 fails, exit 1, evidence still uploaded |
 | `evidence/GRCChallenge-week3-failure-evidence.png` | Red verdict + required check failing + merge blocked |
