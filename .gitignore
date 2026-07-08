@@ -196,3 +196,4 @@ terraform.rc
 # --- Paywalled assignment briefs (do not publish to the public repo) ---
 **/*-email-notes.txt
 **/*-challenge-post.txt
+**/*-challenge.txt
