@@ -87,6 +87,17 @@ jobs:
             --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
             "${WEEK3_DIR}/evidence.tar.gz"
 
+      - name: Upload signed bundle to the immutable vault (dormant)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != ''
+        run: |
+          set -euo pipefail
+          KEY="runs/${{ github.run_id }}/evidence.tar.gz"
+          aws s3api put-object --bucket "${{ vars.EVIDENCE_VAULT_BUCKET }}" \
+            --key "$KEY" --body "${WEEK3_DIR}/evidence.tar.gz"
+          aws s3api put-object --bucket "${{ vars.EVIDENCE_VAULT_BUCKET }}" \
+            --key "$KEY.sig.bundle" --body "${WEEK3_DIR}/evidence.tar.gz.sig.bundle"
+          echo "Vaulted $KEY"
+
       # Upload the evidence whether the gate passed or failed. The entire point
       # of CI evidence is that it survives the failure — so `if: always()`.
       - name: Upload evidence
