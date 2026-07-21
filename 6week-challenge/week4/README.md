@@ -41,4 +41,4 @@ Free. Sigstore signing and verification cost nothing and need no cloud account. 
 
 ## Stretch: the immutable vault
 
-For true preservation, upload the signed bundle to an S3 bucket with Object Lock and versioning on, so nobody can overwrite or delete it. Apply it, push one bundle, verify retention, then tear it down the same day. The brief covers the setup and teardown.
+For true preservation, upload the signed bundle to an S3 bucket with Object Lock and versioning on, so nobody can overwrite or delete it. Apply it, push one bundle, verify retention, then tear it down the same day. See [`vault/README.md`](vault/README.md) for setup and teardown.

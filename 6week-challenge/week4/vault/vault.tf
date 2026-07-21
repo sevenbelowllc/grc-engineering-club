@@ -38,7 +38,8 @@ resource "aws_s3_bucket_versioning" "vault" {
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "vault" {
-  bucket = aws_s3_bucket.vault.id
+  bucket     = aws_s3_bucket.vault.id
+  depends_on = [aws_s3_bucket_versioning.vault]
   rule {
     default_retention {
       mode = "COMPLIANCE"   # even root cannot shorten or delete before expiry

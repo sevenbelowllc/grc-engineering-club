@@ -80,6 +80,7 @@ jobs:
       - name: Bundle, hash, and sign the evidence
         run: |
           set -euo pipefail
+          cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # bundle the evaluated plan (spec: conftest-results.json + plan.json)
           tar -czf "${WEEK3_DIR}/evidence.tar.gz" -C "${WEEK3_DIR}" evidence
           sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
             | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
@@ -89,12 +90,15 @@ jobs:
 
       - name: Upload signed bundle to the immutable vault (dormant)
         if: always() && vars.EVIDENCE_VAULT_BUCKET != ''
+        env:
+          VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          KEY="runs/${{ github.run_id }}/evidence.tar.gz"
-          aws s3api put-object --bucket "${{ vars.EVIDENCE_VAULT_BUCKET }}" \
+          KEY="runs/${RUN_ID}/evidence.tar.gz"
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
             --key "$KEY" --body "${WEEK3_DIR}/evidence.tar.gz"
-          aws s3api put-object --bucket "${{ vars.EVIDENCE_VAULT_BUCKET }}" \
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
             --key "$KEY.sig.bundle" --body "${WEEK3_DIR}/evidence.tar.gz.sig.bundle"
           echo "Vaulted $KEY"
 
@@ -161,8 +165,10 @@ jobs:
 
       - name: Enforce gate verdict
         if: always()
+        env:
+          GATE: ${{ steps.gate.outputs.gate }}
         run: |
-          if [ "${{ steps.gate.outputs.gate }}" != "pass" ]; then
+          if [ "$GATE" != "pass" ]; then
             echo "A control failed — gate is red (evidence was signed and uploaded first)."
             exit 1
           fi
