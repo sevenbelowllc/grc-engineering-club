@@ -46,14 +46,15 @@ jobs:
           sudo install -m 0755 conftest /usr/local/bin/conftest
           conftest --version
 
-      # Run the three policy namespaces against the committed plan, capture the
-      # machine-readable result as evidence, and fail closed.
+      # Run the three policy namespaces against the committed plan and record the
+      # verdict as a step output. `set -o pipefail` ensures Conftest's exit code
+      # survives the `tee` that streams JSON to the evidence file.
       #
-      # `set -o pipefail` is the whole trick: Conftest prints its JSON report to
-      # stdout and THEN exits non-zero on any violation. `tee` writes that report
-      # to the evidence file before the non-zero status propagates through the
-      # pipe and fails this step. So we get both — the evidence is saved AND the
-      # gate fails when a control breaks. One run, one source of truth.
+      # Wrapping the pipeline in `if...; then ... else ... fi` means a policy
+      # violation does NOT abort this step (bash suppresses errexit for an if
+      # condition). Instead we record the result — "gate=pass" or "gate=fail" —
+      # to $GITHUB_OUTPUT, and let the final "Enforce gate verdict" step decide
+      # the job outcome. That step is the single source of truth for red/green.
       - name: Run policy gate
         id: gate
         run: |
