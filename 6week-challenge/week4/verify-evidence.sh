@@ -35,21 +35,28 @@ echo "integrity:    OK  ($ACTUAL)"
 command -v cosign >/dev/null 2>&1 || fail "cosign not installed"
 [ -f "$SIGBUNDLE" ] || fail "signature bundle not found: $SIGBUNDLE"
 
-cosign verify-blob \
+COSIGN_ERR="$(cosign verify-blob \
   --bundle "$SIGBUNDLE" \
   --certificate-oidc-issuer "$EXPECT_ISSUER" \
   --certificate-identity-regexp "$EXPECT_IDENTITY" \
-  "$BUNDLE" >/dev/null 2>&1 \
-  || fail "authenticity: cosign verify-blob rejected the signature/identity"
+  "$BUNDLE" 2>&1)" \
+  || { echo "$COSIGN_ERR" >&2; fail "authenticity: cosign verify-blob rejected the signature/identity"; }
 echo "authenticity: OK  (issuer=$EXPECT_ISSUER)"
 
 # --- 3. PRESERVATION (stretch, dormant unless a vault is configured) --------
 if [ -n "${EVIDENCE_VAULT_BUCKET:-}" ] && [ -n "${EVIDENCE_VAULT_KEY:-}" ]; then
   RETAIN="$(aws s3api get-object-retention \
     --bucket "$EVIDENCE_VAULT_BUCKET" --key "$EVIDENCE_VAULT_KEY" \
-    --query 'Retention.RetainUntilDate' --output text)"
+    --query 'Retention.RetainUntilDate' --output text 2>/dev/null)" \
+    || fail "preservation: could not read object retention (check credentials/bucket/key)"
+  [ -n "$RETAIN" ] && [ "$RETAIN" != "None" ] \
+    || fail "preservation: no Object Lock retention set on $EVIDENCE_VAULT_KEY"
+  # Parse the AWS ISO-8601 timestamp portably (handles Z, offsets, and
+  # fractional seconds — BSD/macOS `date -jf` cannot). python3 is present on
+  # macOS and the CI ubuntu runner.
+  RETAIN_EPOCH="$(python3 -c 'import sys,datetime; s=sys.argv[1].replace("Z","+00:00"); print(int(datetime.datetime.fromisoformat(s).timestamp()))' "$RETAIN" 2>/dev/null)" \
+    || fail "preservation: could not parse retention date: $RETAIN"
   NOW_EPOCH="$(date -u +%s)"
-  RETAIN_EPOCH="$(date -u -d "$RETAIN" +%s 2>/dev/null || date -u -jf '%Y-%m-%dT%H:%M:%S%z' "${RETAIN%%.*}+0000" +%s)"
   [ "$RETAIN_EPOCH" -gt "$NOW_EPOCH" ] || fail "preservation: retention $RETAIN is not in the future"
   echo "preservation: OK  (locked until $RETAIN)"
 else
