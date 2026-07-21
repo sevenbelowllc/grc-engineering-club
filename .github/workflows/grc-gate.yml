@@ -27,6 +27,10 @@ env:
 jobs:
   grc-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write   # required so cosign can mint its keyless OIDC token
     steps:
       - uses: actions/checkout@v4
 
@@ -55,13 +59,32 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "${WEEK3_DIR}/evidence"
-          conftest test "${WEEK3_DIR}/plan.json" \
-            --policy "${WEEK3_DIR}/policies" \
-            --namespace compliance.sc28_aws \
-            --namespace compliance.ac3_aws \
-            --namespace compliance.cm6_aws \
-            --output json \
-            | tee "${WEEK3_DIR}/evidence/conftest-results.json"
+          if conftest test "${WEEK3_DIR}/plan.json" \
+               --policy "${WEEK3_DIR}/policies" \
+               --namespace compliance.sc28_aws \
+               --namespace compliance.ac3_aws \
+               --namespace compliance.cm6_aws \
+               --output json \
+               | tee "${WEEK3_DIR}/evidence/conftest-results.json"; then
+            echo "gate=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Bundle, hash, and sign the evidence
+        run: |
+          set -euo pipefail
+          tar -czf "${WEEK3_DIR}/evidence.tar.gz" -C "${WEEK3_DIR}" evidence
+          sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
+            | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
+          cosign sign-blob --yes \
+            --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
+            "${WEEK3_DIR}/evidence.tar.gz"
 
       # Upload the evidence whether the gate passed or failed. The entire point
       # of CI evidence is that it survives the failure — so `if: always()`.
@@ -70,7 +93,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grc-gate-evidence
-          path: ${{ env.WEEK3_DIR }}/evidence/
+          path: |
+            ${{ env.WEEK3_DIR }}/evidence/
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sha256
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sig.bundle
           if-no-files-found: error
 
       # Post the verdict onto the PR so a reviewer sees the control result in the
@@ -119,6 +146,15 @@ jobs:
               issue_number: context.issue.number,
               body,
             });
+
+      - name: Enforce gate verdict
+        if: always()
+        run: |
+          if [ "${{ steps.gate.outputs.gate }}" != "pass" ]; then
+            echo "A control failed — gate is red (evidence was signed and uploaded first)."
+            exit 1
+          fi
+          echo "All controls passed."
 
   # ---------------------------------------------------------------------------
   # STRETCH — keyless plan generation via GitHub OIDC.
