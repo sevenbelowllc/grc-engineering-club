@@ -73,7 +73,10 @@ jobs:
           fi
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
+        # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
+        # bundle instead, which the older @v3 installer cannot fetch (404).
+        uses: sigstore/cosign-installer@v4
         with:
           cosign-release: 'v3.1.2'
 
