@@ -1,0 +1,8 @@
+# verify-evidence.sh against the authoritative CI-signed bundle (PR #9 run 29882651018)
+# default pins: issuer=GitHub Actions, identity=repo grc-gate.yml
+$ ./verify-evidence.sh evidence/evidence.tar.gz
+integrity:    OK  (3dd2a1afc03e35fe73d46c12823e41871abd1f5fccea1b0d4239994b83c9448e)
+authenticity: OK  (issuer=https://token.actions.githubusercontent.com)
+preservation: skipped (no vault configured)
+CHAIN INTACT
+exit=0
