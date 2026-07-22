@@ -79,7 +79,8 @@ lives in the committed workflow at
 This is the deliverable. The authoritative bundle was signed by
 [PR #9](https://github.com/sevenbelowllc/grc-engineering-club/pull/9), CI run
 `29882651018` — all three controls passed
-(`sc28_aws`, `ac3_aws`, `cm6_aws`, each `successes: 1, failures: 0`). The signed
+(`sc28_aws`, `ac3_aws`, `cm6_aws`, each `"successes": 1` with no `failures`
+entries). The signed
 bundle contains exactly that run's `conftest-results.json` and the `plan.json` it
 evaluated.
 
