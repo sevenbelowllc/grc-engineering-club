@@ -33,6 +33,32 @@ aws s3api put-object --bucket "$BUCKET" --key run-1/evidence.tar.gz --body /tmp/
 
 A tampered bundle has nowhere to live except a laptop. The vault stays clean.
 
+### Why COMPLIANCE mode, and why this is a recognized control
+
+Object Lock in **COMPLIANCE** mode is genuine WORM (write-once-read-many): until
+the retention date passes, no principal — including the account root — can delete
+or overwrite the object or shorten its retention. This is not merely a
+"deny-delete" IAM policy (which a privileged user could edit away); it is a
+data-level retention property S3 enforces against everyone.
+
+That distinction is why it maps to real records-retention regulation. AWS
+commissioned an independent assessment from **Cohasset Associates** (a records-
+management compliance firm) concluding that S3 Object Lock meets the
+non-rewriteable, non-erasable (WORM) storage requirements of **SEC Rule
+17a-4(f)**, **FINRA Rule 4511(c)**, and **CFTC Rule 1.31(c)** when retention is
+applied. COMPLIANCE mode — the mode this vault uses (`vault.tf`) — is the tier
+that cannot be bypassed; the weaker Governance mode can be overridden by a caller
+holding `s3:BypassGovernanceRetention`, so it would not satisfy a strict WORM
+requirement.
+
+- AWS SEC 17a-4(f) compliance overview: <https://aws.amazon.com/compliance/secrule17a-4f/>
+- Cohasset Associates assessment (2025): <https://d1.awsstatic.com/onedam/marketing-channels/website/aws/en_US/whitepapers/compliance/Amazon-S3-Compliance-Assessment-2025.pdf>
+
+Note: `days = 1` in `vault.tf` is a cost-demo value, not a compliant retention
+period — real 17a-4 retention is measured in years. Object Lock is the *control*;
+meeting a regulation also requires an appropriate retention period, a designated
+third party, and the surrounding audit process.
+
 ## Teardown
 
 ```bash
