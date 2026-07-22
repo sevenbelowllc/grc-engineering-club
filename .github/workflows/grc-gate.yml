@@ -83,8 +83,13 @@ jobs:
       - name: Bundle, hash, and sign the evidence
         run: |
           set -euo pipefail
-          cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # bundle the evaluated plan (spec: conftest-results.json + plan.json)
-          tar -czf "${WEEK3_DIR}/evidence.tar.gz" -C "${WEEK3_DIR}" evidence
+          cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # stage the evaluated plan next to the verdict
+          # Sign exactly THIS run's gate output — the verdict and the plan it
+          # evaluated — not the whole shared evidence/ dir (which also holds
+          # prior weeks' static screenshots). Keeps the signed bundle small and
+          # matches the locked spec: conftest-results.json + plan.json.
+          tar -czf "${WEEK3_DIR}/evidence.tar.gz" \
+            -C "${WEEK3_DIR}/evidence" conftest-results.json plan.json
           sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
             | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
           cosign sign-blob --yes \
