@@ -23,7 +23,9 @@ provider "aws" { region = var.region }
 
 resource "aws_s3_bucket" "vault" {
   bucket              = var.bucket_name
-  object_lock_enabled = true   # must be set at creation; cannot be added later
+  object_lock_enabled = true   # simplest to set at creation. (Since 2023-11 AWS
+                               # also supports enabling Object Lock on existing
+                               # versioned buckets via PutObjectLockConfiguration.)
   tags = {
     project     = "grc-challenge"
     environment = "dev"
