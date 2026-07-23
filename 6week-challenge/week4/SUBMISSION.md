@@ -168,4 +168,4 @@ laptop. See [`vault/README.md`](vault/README.md) for apply → verify → teardo
 - [x] The tamper test fails on integrity from a single appended byte (exit 1), captured and committed
 - [x] A writeup maps each of the four custody properties to the artifact that proves it
 - [x] Stretch: dormant S3 Object Lock vault shipped (Terraform + runbook + gated upload step)
-- [ ] Post to LinkedIn (pass beside fail), tagging GRC Engineering Club with `#GRCEngClubChallenge`, explaining why keyless signing beats a stored key
+- [x] Post to LinkedIn (pass beside fail), tagging GRC Engineering Club with `#GRCEngClubChallenge`, explaining why keyless signing beats a stored key
