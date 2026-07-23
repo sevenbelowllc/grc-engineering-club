@@ -1,0 +1,24 @@
+"Not even the root user can delete it."
+
+That's the promise of AWS S3 Object Lock in COMPLIANCE mode. While building an immutable "evidence vault" for a GRC chain-of-custody project, I pressure-tested that claim — and the nuance is where the real understanding lives.
+
+A "deny delete" IAM permission and WORM immutability look similar. They are not:
+
+→ A permission is an access rule attached to an identity. Anyone with admin can edit it off, then delete. The insider you're most worried about is exactly the one who can lift it.
+
+→ WORM in COMPLIANCE mode is a property of the object itself, enforced against everyone — including root. There is no bypass permission. Deletion isn't restricted; it simply is not an available operation.
+
+But "immutable" is not "eternal." It's TIME-BOUNDED. The object is locked until a retention date. During that window: nobody deletes, overwrites, or shortens it. After it expires: it's a normal object again.
+
+So can root ever remove it early? Exactly one way — close the entire AWS account. And that doesn't bypass the lock; it destroys the container around it (a ~90-day recoverable grace period, then everything is purged). You harden even that with an AWS Organizations policy that denies account closure.
+
+Why this matters for GRC: the honest claim to an auditor isn't "it can never be deleted." It's:
+
+"This evidence cannot be deleted without an account-destroying, reversible, 90-day, fully-audited act."
+
+You didn't make deletion impossible. You raised its cost from one delete command an insider runs in seconds to burning down the whole AWS account and waiting 90 days.
+
+That's the difference between a promise and a control.
+
+#GRCEngineering #CloudSecurity #AWS #GRCEngClubChallenge
+(tagging GRC Engineering Club)

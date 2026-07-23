@@ -27,6 +27,10 @@ env:
 jobs:
   grc-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write   # required so cosign can mint its keyless OIDC token
     steps:
       - uses: actions/checkout@v4
 
@@ -42,26 +46,69 @@ jobs:
           sudo install -m 0755 conftest /usr/local/bin/conftest
           conftest --version
 
-      # Run the three policy namespaces against the committed plan, capture the
-      # machine-readable result as evidence, and fail closed.
+      # Run the three policy namespaces against the committed plan and record the
+      # verdict as a step output. `set -o pipefail` ensures Conftest's exit code
+      # survives the `tee` that streams JSON to the evidence file.
       #
-      # `set -o pipefail` is the whole trick: Conftest prints its JSON report to
-      # stdout and THEN exits non-zero on any violation. `tee` writes that report
-      # to the evidence file before the non-zero status propagates through the
-      # pipe and fails this step. So we get both — the evidence is saved AND the
-      # gate fails when a control breaks. One run, one source of truth.
+      # Wrapping the pipeline in `if...; then ... else ... fi` means a policy
+      # violation does NOT abort this step (bash suppresses errexit for an if
+      # condition). Instead we record the result — "gate=pass" or "gate=fail" —
+      # to $GITHUB_OUTPUT, and let the final "Enforce gate verdict" step decide
+      # the job outcome. That step is the single source of truth for red/green.
       - name: Run policy gate
         id: gate
         run: |
           set -o pipefail
           mkdir -p "${WEEK3_DIR}/evidence"
-          conftest test "${WEEK3_DIR}/plan.json" \
-            --policy "${WEEK3_DIR}/policies" \
-            --namespace compliance.sc28_aws \
-            --namespace compliance.ac3_aws \
-            --namespace compliance.cm6_aws \
-            --output json \
-            | tee "${WEEK3_DIR}/evidence/conftest-results.json"
+          if conftest test "${WEEK3_DIR}/plan.json" \
+               --policy "${WEEK3_DIR}/policies" \
+               --namespace compliance.sc28_aws \
+               --namespace compliance.ac3_aws \
+               --namespace compliance.cm6_aws \
+               --output json \
+               | tee "${WEEK3_DIR}/evidence/conftest-results.json"; then
+            echo "gate=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Cosign
+        # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
+        # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
+        # bundle instead, which the older @v3 installer cannot fetch (404).
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
+
+      - name: Bundle, hash, and sign the evidence
+        run: |
+          set -euo pipefail
+          cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # stage the evaluated plan next to the verdict
+          # Sign exactly THIS run's gate output — the verdict and the plan it
+          # evaluated — not the whole shared evidence/ dir (which also holds
+          # prior weeks' static screenshots). Keeps the signed bundle small and
+          # matches the locked spec: conftest-results.json + plan.json.
+          tar -czf "${WEEK3_DIR}/evidence.tar.gz" \
+            -C "${WEEK3_DIR}/evidence" conftest-results.json plan.json
+          sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
+            | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
+          cosign sign-blob --yes \
+            --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
+            "${WEEK3_DIR}/evidence.tar.gz"
+
+      - name: Upload signed bundle to the immutable vault (dormant)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != ''
+        env:
+          VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          KEY="runs/${RUN_ID}/evidence.tar.gz"
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
+            --key "$KEY" --body "${WEEK3_DIR}/evidence.tar.gz"
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
+            --key "$KEY.sig.bundle" --body "${WEEK3_DIR}/evidence.tar.gz.sig.bundle"
+          echo "Vaulted $KEY"
 
       # Upload the evidence whether the gate passed or failed. The entire point
       # of CI evidence is that it survives the failure — so `if: always()`.
@@ -70,7 +117,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grc-gate-evidence
-          path: ${{ env.WEEK3_DIR }}/evidence/
+          path: |
+            ${{ env.WEEK3_DIR }}/evidence/
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sha256
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sig.bundle
           if-no-files-found: error
 
       # Post the verdict onto the PR so a reviewer sees the control result in the
@@ -119,6 +170,17 @@ jobs:
               issue_number: context.issue.number,
               body,
             });
+
+      - name: Enforce gate verdict
+        if: always()
+        env:
+          GATE: ${{ steps.gate.outputs.gate }}
+        run: |
+          if [ "$GATE" != "pass" ]; then
+            echo "A control failed — gate is red (evidence was signed and uploaded first)."
+            exit 1
+          fi
+          echo "All controls passed."
 
   # ---------------------------------------------------------------------------
   # STRETCH — keyless plan generation via GitHub OIDC.

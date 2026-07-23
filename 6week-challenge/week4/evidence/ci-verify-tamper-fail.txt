@@ -1,0 +1,6 @@
+# Tamper test: copy the signed bundle, append ONE line ('junk'), re-verify.
+# original sha256: 3dd2a1afc03e35fe73d46c12823e41871abd1f5fccea1b0d4239994b83c9448e
+# tampered sha256: 60f63264328624fc52a663f28e165377a32008764df0c85e7805283010ac4d80
+$ ./verify-evidence.sh /tmp/w4tamper.tar.gz
+FAIL: integrity: sha256 mismatch (bundle was modified)
+exit=1
