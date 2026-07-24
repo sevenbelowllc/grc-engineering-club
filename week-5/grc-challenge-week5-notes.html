@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 5: Turn On the Cameras — GRC Engineering Club Challenge</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2430;
+    --muted: #5b6472;
+    --accent: #1a6feb;
+    --border: #e2e6ec;
+    --code-bg: #f4f6f9;
+    --callout-bg: #f0f6ff;
+    --callout-border: #1a6feb;
+    --warn-bg: #fff7ec;
+    --warn-border: #e08a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d;
+      --fg: #e6e9ee;
+      --muted: #9aa4b2;
+      --accent: #5c9bff;
+      --border: #2b3240;
+      --code-bg: #1e232d;
+      --callout-bg: #182236;
+      --callout-border: #5c9bff;
+      --warn-bg: #2a2114;
+      --warn-border: #d99b3d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2.2rem 0 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 0.5rem; }
+  p { margin: 0.8rem 0; }
+  .lede { color: var(--muted); font-size: 1.05rem; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+  }
+  pre code { background: none; border: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); }
+  .table-wrap { overflow-x: auto; }
+  .callout {
+    background: var(--callout-bg);
+    border-left: 4px solid var(--callout-border);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin: 1.2rem 0;
+  }
+  .warn {
+    background: var(--warn-bg);
+    border-left: 4px solid var(--warn-border);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin: 1.2rem 0;
+  }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.4rem 0; }
+  ul.checklist { list-style: none; padding-left: 0.2rem; }
+  ul.checklist li::before { content: "☐ "; color: var(--accent); font-weight: 600; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Week 5: Turn On the Cameras</h1>
+
+  <p class="lede">For four weeks you have been proving things about infrastructure you control. This week you turn on the native cloud controls that watch the account itself, capture what they see as evidence, sign it into the same chain you built last week, and tear it all down the same day.</p>
+
+  <div class="warn"><strong>This is the one week that touches billable AWS services.</strong> Read the cost section before you apply, follow it, and you will spend pennies.</div>
+
+  <p>Two controls do the watching:</p>
+  <ul>
+    <li><strong>CloudTrail</strong> records who did what in the account.</li>
+    <li><strong>Security Hub</strong> grades the account against a real NIST 800-53 baseline and hands you findings.</li>
+  </ul>
+  <p>Both produce evidence a machine wrote, which is exactly the kind of evidence this pipeline collects.</p>
+
+  <div class="callout"><strong>Starter code:</strong> grab <code>week-5-starter.zip</code> attached to this post. It ships a <code>teardown.sh</code> that captures findings then destroys, and a README. The Terraform is yours to write. That is the point: you have written Terraform for five weeks now, so standing up a trail and a standard is the rep that proves it stuck.</div>
+
+  <h2>What you are building</h2>
+  <p>Two pieces, one apply.</p>
+
+  <h3>1. A multi-region CloudTrail</h3>
+  <p>It writes to a private, encrypted S3 bucket and runs with <code>enable_log_file_validation = true</code>. That last flag is the control. With validation on, CloudTrail emits a signed digest file every hour, so you can prove the log records have not been altered after the fact.</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Control</th><th>Name</th><th>Why it applies</th></tr>
+    <tr><td>AU-2</td><td>Event logging</td><td>You chose what gets recorded</td></tr>
+    <tr><td>AU-12</td><td>Audit record generation</td><td>Audit records generated across the account</td></tr>
+    <tr><td>AU-10</td><td>Non-repudiation</td><td>The integrity of the audit info itself</td></tr>
+  </table>
+  </div>
+
+  <h3>2. Security Hub with the NIST 800-53 Rev 5 standard</h3>
+  <p>Enable the account, then subscribe the standard at:</p>
+  <pre><code>arn:aws:securityhub:REGION::standards/nist-800-53/v/5.0.0</code></pre>
+  <p>Security Hub runs a few hundred automated checks against that baseline and produces findings.</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Control</th><th>Name</th></tr>
+    <tr><td>RA-5</td><td>Vulnerability and configuration scanning</td></tr>
+    <tr><td>SI-4</td><td>System monitoring</td></tr>
+  </table>
+  </div>
+
+  <h3>The bucket policy (read this twice)</h3>
+  <p>The bucket policy is where people lose an hour. CloudTrail writes to your bucket as a service, and the bucket policy has to allow it. On current AWS that policy needs an <code>aws:SourceArn</code> condition scoped to your specific trail, not just the service principal. Without the condition, the trail either fails to create or refuses to write.</p>
+  <p>The Terraform registry page for <code>aws_cloudtrail</code> and the AWS docs for the CloudTrail bucket policy both show the exact statement. Read it, understand the condition, write your own.</p>
+
+  <h3>Skip AWS Config</h3>
+  <p>It is genuinely optional here, and in most managed accounts an organization SCP blocks it anyway. There is a clean GRC lesson in that: Security Hub will raise a finding titled &ldquo;AWS Config should be enabled,&rdquo; and that finding is itself valid evidence. A documented control gap, surfaced by an automated check, is exactly what you want your pipeline to capture. Do not fight the SCP. Let the gap show.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>An AWS account where you can create CloudTrail, S3, and Security Hub resources. A sandbox account is best.</li>
+    <li>Terraform 1.6 or newer.</li>
+    <li>AWS CLI v2 with a working profile. SSO users, export first:
+      <pre><code>eval "$(aws configure export-credentials --profile &lt;your-profile&gt; --format env)"</code></pre>
+    </li>
+    <li>Your week 4 signing pipeline, so the findings file joins the chain of custody.</li>
+    <li>About an hour, including the wait for findings.</li>
+  </ul>
+
+  <h2>Cost</h2>
+  <p>Read this and you will be fine.</p>
+  <ul>
+    <li><strong>CloudTrail management events are free.</strong> One trail of management events costs nothing. Do <em>not</em> enable data events. Data events bill per event and are not part of this build. Leave them off.</li>
+    <li><strong>Security Hub bills roughly $0.001 per check.</strong> The NIST standard is a few hundred checks, so a full month is under about a dollar, and if you tear down within the hour it is pennies.</li>
+    <li><strong>Apply and destroy the same day.</strong> That keeps the whole week in pennies. Leaving it running adds up slowly, so do not leave it running. Tear it down.</li>
+  </ul>
+
+  <h2>Build it</h2>
+  <p>Open the starter and write the Terraform.</p>
+  <ol>
+    <li><strong>The evidence bucket.</strong> Private, encrypted, public access blocked on all four flags. You did exactly this in week 1, so reuse what you learned. This bucket holds CloudTrail logs, so it must exist before the trail.</li>
+    <li><strong>The bucket policy.</strong> Allow the CloudTrail service principal to check the bucket ACL and to put objects, and scope both statements with the <code>aws:SourceArn</code> condition pointing at your trail's ARN. This is the snag. Get it right and the trail creates clean.</li>
+    <li><strong>The trail.</strong> <code>aws_cloudtrail</code> with <code>is_multi_region_trail = true</code> and <code>enable_log_file_validation = true</code>, pointed at your bucket. The validation flag is the AU-10 control. Do not skip it.</li>
+    <li><strong>Security Hub.</strong> Enable the account, then subscribe the NIST 800-53 Rev 5 standard by its ARN. Two resources.</li>
+  </ol>
+
+  <h2>Capture the evidence</h2>
+  <p>Security Hub needs time to run its checks. Wait 10 to 20 minutes after apply, then pull the findings.</p>
+  <p>Open the file. You should see real findings, very likely including &ldquo;AWS Config should be enabled,&rdquo; each with a control ID, a severity, and a status. That JSON is your evidence for RA-5 and SI-4.</p>
+  <p>Now sign it. Run <code>evidence/security-hub-findings.json</code> through your week 4 pipeline so it gets a keyless signature and joins the chain of custody alongside your earlier bundles. This is the continuity that matters: native-control findings are now first-class evidence in the same signed chain as your plan and your gate output. Verify the signature the same way week 4 taught you, with <code>cosign verify-blob</code>, before you tear anything down.</p>
+
+  <h2>Done when</h2>
+  <ul class="checklist">
+    <li><code>aws cloudtrail get-trail-status</code> shows <code>IsLogging: true</code>.</li>
+    <li><code>aws securityhub get-findings</code> returns at least one finding.</li>
+    <li><code>evidence/security-hub-findings.json</code> is captured and non-empty.</li>
+    <li>The findings file carries a valid signature from your week 4 pipeline.</li>
+    <li><code>terraform destroy</code> completes and nothing is left billing.</li>
+  </ul>
+
+  <h2>Tear it down</h2>
+  <div class="warn"><strong>This is not optional.</strong> Run the starter's <code>teardown.sh</code>, which captures the findings first (in case you skipped that step) and then runs <code>terraform destroy</code>. If you destroy by hand, capture the findings file first, because once Security Hub is disabled the findings are gone.</div>
+  <p>Then confirm the account is clean. Check that the trail is gone and Security Hub is disabled, and empty and remove the evidence bucket if <code>destroy</code> left objects behind. Nothing should be billing when you walk away.</p>
+
+  <h2>On GCP?</h2>
+  <p>The shape holds, the names change. Use organization policy constraints in place of account guardrails, turn on <em>Data Access audit logs</em> for the AU controls, and use <em>Security Command Center</em> in place of Security Hub for the RA-5 and SI-4 findings. Capture the SCC findings as JSON and sign them the same way. The control IDs do not move.</p>
+
+  <h2>Make it a portfolio piece</h2>
+  <p>This entry shows you can stand up native controls, harvest their output as evidence, and shut the bill off cleanly. Hiring managers read that as operational maturity.</p>
+  <ul>
+    <li>The baseline Terraform in a public repo: the trail, the encrypted bucket with its <code>aws:SourceArn</code> policy, and the Security Hub standard.</li>
+    <li>The captured <code>evidence/security-hub-findings.json</code>, with the signature alongside it.</li>
+    <li>A README that names AU-2, AU-12, AU-10, RA-5, and SI-4, explains why log file validation matters, and notes that the &ldquo;AWS Config should be enabled&rdquo; finding is a documented gap, not a mistake.</li>
+    <li>A one-line note that you tore it down the same day. Cost discipline is part of the skill.</li>
+  </ul>
+  <p>Post on LinkedIn. Tag GRC Engineering Club, use <strong>#GRCEngClubChallenge</strong>, and share what the findings file surfaced that you did not expect.</p>
+
+  <h2>Common snags</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Snag</th><th>Fix</th></tr>
+    <tr><td>CloudTrail will not create or write</td><td>The bucket policy is missing the <code>aws:SourceArn</code> condition scoped to your trail. Add it to both the ACL-check and put-object statements.</td></tr>
+    <tr><td>Security Hub is already enabled</td><td>Someone or something turned it on before you. Import it instead of fighting it: <code>terraform import aws_securityhub_account.this &lt;ACCOUNT_ID&gt;</code>, then apply.</td></tr>
+    <tr><td>Config access denied</td><td>That is your org SCP. Leave Config out, and let the Security Hub finding stand as evidence of the gap.</td></tr>
+    <tr><td>No findings yet</td><td>You checked too early. Wait the full 10 to 20 minutes and pull again.</td></tr>
+  </table>
+  </div>
+
+  <footer>Next week you stop building and start mapping: everything from all five weeks gets expressed in OSCAL against NIST 800-53, with evidence links pointing at your signed bundles, and you ship the portfolio case study that ties it together.</footer>
+</main>
+</body>
+</html>
