@@ -1,0 +1,53 @@
+Week 5 of the GRC Engineering Club challenge ("Turn On the Cameras") humbled me. I learned something about an AWS native service that, honestly, I should have understood years ago.
+
+I stood up AWS Security Hub, enabled the NIST 800-53 standard, and waited.
+
+Nothing.
+
+Every control showed INCOMPLETE with the same reason:
+
+NO_AVAILABLE_CONFIGURATION_RECORDER
+
+That sent me down a rabbit hole that completely changed how I think about Security Hub.
+
+The realization?
+
+Security Hub isn't the sensor. It's the reporting layer.
+
+For most checks, it depends on AWS Config collecting the resource state first.
+
+No Config recorder means no evidence.
+
+No evidence means nothing to evaluate.
+
+And here's the part that caught me off guard...
+
+Security Hub can't even tell you that Config isn't enabled, because it relies on Config to produce the data in the first place.
+
+So you end up with what looks like a clean dashboard when, in reality, you have no coverage at all.
+
+I added AWS Config through Terraform, waited about 15 minutes, and findings immediately started flowing.
+
+The first critical finding?
+
+Config.1 — pointing out that my own Config deployment was using a custom IAM role instead of the AWS service-linked role.
+
+My pipeline caught my own mistake.
+
+That's exactly what I wanted.
+
+The lesson wasn't really about Security Hub.
+
+It was about GRC.
+
+A control that's enabled is not the same thing as a control that's working.
+
+Anyone can turn something on.
+
+Engineers verify it's actually producing evidence.
+
+That's the difference between saying you have continuous monitoring and proving you have continuous monitoring.
+
+"On" is a configuration.
+
+"Producing evidence" is a control.
