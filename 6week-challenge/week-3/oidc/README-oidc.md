@@ -30,7 +30,7 @@ that live minutes and can't be replayed. Nothing is stored.
 not part of the week-1 build, and the gate never applies it.
 
 ```bash
-cd 6week-challenge/week3/oidc
+cd 6week-challenge/week-3/oidc
 terraform init
 terraform apply          # creates the OIDC provider + read-only grc-gate-oidc role
 terraform output role_arn

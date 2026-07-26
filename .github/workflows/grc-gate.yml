@@ -3,10 +3,10 @@
 #
 # Why this file lives at the repo root: GitHub Actions only discovers workflows
 # under .github/workflows/ at the repository root. The starter skeleton shipped a
-# copy nested under 6week-challenge/week3/week-3/.github/workflows/, which can
+# copy nested under 6week-challenge/week-3/week-3/.github/workflows/, which can
 # never trigger. That copy is kept for reference; THIS file is the live gate.
 #
-# The plan and policies it evaluates live under 6week-challenge/week3/.
+# The plan and policies it evaluates live under 6week-challenge/week-3/.
 name: grc-gate
 
 on:
@@ -22,7 +22,7 @@ permissions:
 
 env:
   CONFTEST_VERSION: "0.68.2"
-  WEEK3_DIR: 6week-challenge/week3
+  WEEK3_DIR: 6week-challenge/week-3
 
 jobs:
   grc-gate:
@@ -189,7 +189,7 @@ jobs:
   # GitHub OIDC (no stored keys), generates the plan in CI, and runs the same
   # gate against it. It is gated on the `AWS_GATE_ROLE_ARN` repo variable, so it
   # stays dormant (skipped, not failing) until you set that variable after
-  # applying 6week-challenge/week3/oidc/iam-oidc.tf. See oidc/README-oidc.md.
+  # applying 6week-challenge/week-3/oidc/iam-oidc.tf. See oidc/README-oidc.md.
   # ---------------------------------------------------------------------------
   grc-gate-oidc:
     runs-on: ubuntu-latest
@@ -200,7 +200,7 @@ jobs:
                          # the credential exchange fail silently.
     defaults:
       run:
-        working-directory: 6week-challenge/week3/terraform
+        working-directory: 6week-challenge/week-3/terraform
     steps:
       - uses: actions/checkout@v4
 
@@ -252,5 +252,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grc-gate-evidence-oidc
-          path: 6week-challenge/week3/evidence/
+          path: 6week-challenge/week-3/evidence/
           if-no-files-found: error

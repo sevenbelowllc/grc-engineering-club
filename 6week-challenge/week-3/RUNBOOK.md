@@ -10,7 +10,7 @@ that passes and one that is blocked, with branch protection making the block rea
 
 ## 0. Prerequisites (once)
 
-- The branch adding `.github/workflows/grc-gate.yml` and `6week-challenge/week3/`
+- The branch adding `.github/workflows/grc-gate.yml` and `6week-challenge/week-3/`
   is pushed and its PR to `main` is open. (If Claude created it, this is done.)
 
 ## 1. Green PR — the gate passes
@@ -38,7 +38,7 @@ Settings → Branches → Add branch protection rule for `main`:
 1. New branch off `main`:
    ```bash
    git switch -c week3-red-demo main
-   cp 6week-challenge/week3/plan-broken.json 6week-challenge/week3/plan.json
+   cp 6week-challenge/week-3/plan-broken.json 6week-challenge/week-3/plan.json
    git commit -am "week3: red demo — remove encryption, break SC-28"
    git push -u origin week3-red-demo
    gh pr create --base main --title "week3 RED: break SC-28 (encryption removed)" \
@@ -76,7 +76,7 @@ Only after you want CI to generate the plan itself. See
 [`oidc/README-oidc.md`](./oidc/README-oidc.md):
 
 ```bash
-cd 6week-challenge/week3/oidc && terraform init && terraform apply
+cd 6week-challenge/week-3/oidc && terraform init && terraform apply
 gh variable set AWS_GATE_ROLE_ARN --body "$(terraform output -raw role_arn)"
 ```
 

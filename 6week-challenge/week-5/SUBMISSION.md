@@ -75,7 +75,7 @@ transparency log. No private key to store or leak.
 ```
 $ EXPECT_ISSUER='https://accounts.google.com' \
   EXPECT_IDENTITY='^dkramer@sevenbelow\.com$' \
-  ../week4/verify-evidence.sh evidence/week5-evidence.tar.gz
+  ../week-4/verify-evidence.sh evidence/week5-evidence.tar.gz
 integrity:    OK  (b7b4ef92ab9b9172efa6a3715a42afa90e0b4299942891e94f12c6fce16699b5)
 authenticity: OK  (issuer=https://accounts.google.com)
 CHAIN INTACT
