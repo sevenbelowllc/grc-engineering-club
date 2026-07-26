@@ -14,7 +14,7 @@
 - **Regions:** primary/home `us-west-2`; replica `us-east-2`.
 - **Encryption:** SSE-S3 `AES256` with `bucket_key_enabled = true` on both buckets (SC-28). No KMS.
 - **CloudTrail:** `is_multi_region_trail = true`, `enable_log_file_validation = true`, management events only — **never** enable data events.
-- **No AWS Organizations, no AWS Config, no CloudWatch Logs/SNS.** Config's absence is captured as evidence, not fixed.
+- **No AWS Organizations, no CloudWatch Logs/SNS.** ~~No AWS Config~~ **AMENDED 2026-07-25:** AWS Config IS required — Security Hub standards produce zero findings without a configuration recorder (`NO_AVAILABLE_CONFIGURATION_RECORDER`). Added in `config.tf` (commit `582b510`). See the spec's "Amendment 2026-07-25" section.
 - **Cost discipline:** apply and destroy the **same day**. `force_destroy = true` on both buckets so `destroy` never blocks on log objects.
 - **Location:** all files under `6week-challenge/week5/`. The club's brief is **not** committed. Reuse `../week4/verify-evidence.sh`; do not duplicate it.
 - **Tags (repo convention):** provider `default_tags` = `Project`, `Environment`, `ManagedBy=terraform`, `ComplianceScope=nist-800-53`.

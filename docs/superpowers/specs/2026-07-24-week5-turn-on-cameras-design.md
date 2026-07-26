@@ -29,9 +29,14 @@ requirements, not afterthoughts.
 - **Cross-account replication** — the gold-standard "log archive account"
   pattern needs a second account + Organizations. Out of scope; noted in the
   README as the upgrade path.
-- **AWS Config** — optional and often blocked by an org SCP. Left out
-  deliberately. The Security Hub finding "AWS Config should be enabled" is
-  itself valid evidence of a documented control gap.
+- **AWS Config** — ~~optional; left out deliberately~~ **AMENDED 2026-07-25:
+  now REQUIRED and included.** At go-live, Security Hub produced zero findings
+  because every standard was stuck `INCOMPLETE` with
+  `NO_AVAILABLE_CONFIGURATION_RECORDER`. Config is a hard dependency for
+  Security Hub standard controls, not optional — the brief's "skip Config,
+  still get findings" premise is false for a fresh account. Config was added in
+  `config.tf` (recorder + delivery channel + encrypted S3 + IAM role). Not
+  blocked by an SCP in this account. See the Amendment section below.
 - **CloudTrail data events** — never enabled (they bill per event). Management
   events only, which are free.
 - **CloudWatch Logs integration, SNS alarms (AU-6)** — scope creep beyond the
@@ -167,7 +172,8 @@ Applied and destroyed the same day, the whole week stays in pennies:
 | CP-6 / CP-9 | Alternate storage site / backup | us-east-2 replica of audit logs |
 | RA-5 | Vulnerability / config scanning | Security Hub NIST 800-53 checks |
 | SI-4 | System monitoring | Security Hub findings |
-| SC-28 | Protection at rest | AES256 on both buckets |
+| CA-7 | Continuous monitoring | AWS Config recorder feeding Security Hub |
+| SC-28 | Protection at rest | AES256 on all buckets |
 
 ## Deliverables and file layout
 
@@ -215,3 +221,33 @@ Week-4's `verify-evidence.sh` is **reused**, not duplicated.
 - **Bucket policy `aws:SourceArn`:** the single most common failure point. The
   deterministic trail-ARN string approach must exactly match the created trail's
   ARN, or the trail will refuse to write.
+
+## Amendment 2026-07-25: AWS Config is required
+
+**Discovered at go-live.** After `terraform apply`, Security Hub returned zero
+findings for ~45 minutes. `get-enabled-standards` showed all standards (NIST
+800-53, plus the auto-enabled CIS and FSBP) `INCOMPLETE` with
+`StatusReasonCode: NO_AVAILABLE_CONFIGURATION_RECORDER`.
+
+**Root cause.** Security Hub's standard controls evaluate by reading AWS
+Config's configuration recorder. With no recorder in the account/region, the
+controls cannot run and no findings are generated — not even the "AWS Config
+should be enabled" control. The original design (and the challenge brief)
+treated Config as optional; that is incorrect for a fresh account. Config is a
+hard dependency for the RA-5 / SI-4 evidence this week requires.
+
+**Fix.** Added `config.tf`: an `aws_config_configuration_recorder` (all
+supported + global resource types), an `aws_config_delivery_channel`, an
+encrypted (`AES256`) `force_destroy` S3 snapshot bucket with a
+`config.amazonaws.com` bucket policy scoped by `aws:SourceAccount` (no
+`s3:x-amz-acl` condition, so it works with default bucket ownership), and a
+Config IAM role (`AWS_ConfigRole` managed policy + an inline S3-delivery
+policy). Applied cleanly (10 resources); recorder `recording: true`.
+
+**Cost.** Config bills per configuration item recorded (~$0.003 each) plus rule
+evaluations. For an account recorded for under an hour with same-day teardown,
+this stays in cents. Adds `CA-7` (continuous monitoring) to the control set.
+
+**Teardown.** `terraform destroy` removes the recorder, delivery channel, role,
+and (via `force_destroy`) the snapshot bucket. Nothing Config-related is left
+billing.
