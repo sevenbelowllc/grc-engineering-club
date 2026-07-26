@@ -1,0 +1,6 @@
+region              = "us-west-2"
+replica_region      = "us-east-2"
+profile             = "default"
+project_name        = "grc-week5"
+environment         = "dev"
+expected_account_id = "232929535631"
