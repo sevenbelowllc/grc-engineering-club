@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 6: Speak the Auditor's Language — GRC Engineering Club Challenge</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2430;
+    --muted: #5b6472;
+    --accent: #1a6feb;
+    --border: #e2e6ec;
+    --code-bg: #f4f6f9;
+    --callout-bg: #f0f6ff;
+    --callout-border: #1a6feb;
+    --prize-bg: #f2fbf4;
+    --prize-border: #1d9e4b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d;
+      --fg: #e6e9ee;
+      --muted: #9aa4b2;
+      --accent: #5c9bff;
+      --border: #2b3240;
+      --code-bg: #1e232d;
+      --callout-bg: #182236;
+      --callout-border: #5c9bff;
+      --prize-bg: #16261b;
+      --prize-border: #3dbb6c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 0.25rem; }
+  .byline { color: var(--muted); margin: 0 0 1.5rem; }
+  h2 { font-size: 1.4rem; margin: 2.2rem 0 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 0.5rem; }
+  p { margin: 0.8rem 0; }
+  a { color: var(--accent); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+  }
+  pre code { background: none; border: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); }
+  .table-wrap { overflow-x: auto; }
+  .callout {
+    background: var(--callout-bg);
+    border-left: 4px solid var(--callout-border);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin: 1.2rem 0;
+  }
+  .prize {
+    background: var(--prize-bg);
+    border-left: 4px solid var(--prize-border);
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin: 1.2rem 0;
+  }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.4rem 0; }
+  ul.checklist { list-style: none; padding-left: 0.2rem; }
+  ul.checklist li::before { content: "☐ "; color: var(--accent); font-weight: 600; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Week 6: Speak the Auditor's Language</h1>
+  <p class="byline"><strong>GRC Engineering Club</strong> · Jul 21, 2026</p>
+
+  <p>You have a pipeline that enforces controls, proves them with policy, gates them on every pull request, signs the evidence, and watches the account. There is one gap left. All of that proof lives in your formats: Terraform, Rego, JSON artifacts, signed bundles.</p>
+
+  <p>An assessor lives in a different world, and the bridge between the two is <strong>OSCAL</strong>, NIST's machine-readable format for controls and evidence. This week you build that bridge. Then you write the case study that turns six weeks of work into the centerpiece of your portfolio.</p>
+
+  <p><strong>This is the finish line.</strong> Two builds:</p>
+  <ol>
+    <li>An OSCAL control mapping</li>
+    <li>The case study that presents the whole pipeline as one system</li>
+  </ol>
+
+  <div class="callout"><strong>Starter code:</strong> grab <code>week-6-starter.zip</code> attached to this post. It has a README with the trestle steps and a <code>PORTFOLIO-CASE-STUDY.md</code> template. The OSCAL is yours to author with trestle, which generates valid skeletons for you to fill in. The template is a frame, not the picture.</div>
+
+  <h2>What OSCAL actually buys you</h2>
+  <p>Forget the acronym for a second. The thing OSCAL gives you is <strong>traversal</strong>. An assessor starts at a control catalog, follows a profile to the subset of controls in scope, follows a component to how each control is implemented, and follows an evidence link to the actual proof. No meeting, no screenshot request, no email thread. They read the document and follow the links. The audit becomes a graph traversal:</p>
+  <pre><code>catalog → profile → component → evidence URI → verified bundle</code></pre>
+  <p>You are going to write the smallest real version of that. One component that describes your pipeline, a profile that selects the controls it covers, and evidence links that point at the signed bundles you produced in week 4. When it works, someone reads your control mapping, clicks through to a signed bundle, verifies it, and confirms your SC-28 claim without ever talking to you.</p>
+
+  <h2>What you are building</h2>
+  <p>Two OSCAL documents, both authored with trestle and both validating clean.</p>
+
+  <h3>1. A component definition</h3>
+  <p>Describes your pipeline. One <code>implemented-requirement</code> per control you genuinely satisfied: <strong>SC-28, AC-3, AU-3, CM-6</strong>. Each one:</p>
+  <ul>
+    <li>says in plain language how your infrastructure satisfies the control,</li>
+    <li>carries a prop naming the Terraform resource that does the work, and</li>
+    <li>carries a <code>links</code> entry with <code>rel: evidence</code> whose <code>href</code> points at your signed bundle from week 4.</li>
+  </ul>
+  <p>The <code>source</code> is the public NIST 800-53 Rev 5 catalog.</p>
+
+  <h3>2. A profile</h3>
+  <p>Selects exactly those control IDs from the catalog and nothing else. The profile is the statement of what you are claiming. Four controls, four IDs, no padding.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Your week 4 signed bundle, or your week 4 vault object, reachable by a URL or path. This is what your evidence links point at.</li>
+    <li>Your week 4 <code>verify-evidence.sh</code>, working. You will run it again at the end.</li>
+    <li>Python 3 and pip. trestle is a Python package.</li>
+    <li>45 to 60 minutes.</li>
+  </ul>
+
+  <h2>Cost</h2>
+  <p><strong>Free.</strong> OSCAL is JSON sitting in your repo. Nothing to deploy, nothing to tear down.</p>
+
+  <h2>Build it</h2>
+  <p>Install trestle and initialize a workspace. Then work through both documents. The README in the starter has the exact invocations.</p>
+  <ol>
+    <li>
+      <p><strong>Generate the component skeleton:</strong></p>
+      <pre><code>trestle create -t component-definition -o my-pipeline -x json</code></pre>
+      <p>Then fill it in. For each control, write the <code>implemented-requirement</code>, add the prop that names the Terraform resource (the encryption resource for SC-28, the public access block for AC-3, and so on), and add the <code>rel: evidence</code> link to your signed bundle. Set <code>source</code> to the NIST 800-53 Rev 5 catalog URL.</p>
+    </li>
+    <li>
+      <p><strong>Generate the profile:</strong></p>
+      <pre><code>trestle create -t profile</code></pre>
+      <p>List your four control IDs under <code>include-controls</code>.</p>
+    </li>
+  </ol>
+
+  <h2>Run it and validate</h2>
+  <p>You want <code>VALID</code> on both. The OSCAL schema is strict and verbose, so expect to fix a few missing fields before it goes clean. That strictness is the point. A document that validates is a document a machine can traverse.</p>
+
+  <h2>Prove the traversal</h2>
+  <p>This is the moment the whole challenge pays off. Pick one control in your component — SC-28 is the clean one. Follow its evidence <code>href</code> to the vault or the signed bundle. Run your week 4 <code>verify-evidence.sh</code> against it.</p>
+  <p>When it prints <code>CHAIN INTACT</code>, the entire chain is connected end to end: a machine-readable control statement, an evidence link, a signed bundle, a passing verification. That is what engineered assurance means, and you just built the smallest complete version of it.</p>
+
+  <h2>The capstone: your portfolio case study</h2>
+  <p>The OSCAL is the last technical brick. The case study is what makes the pile of bricks a building.</p>
+  <p>Fill in <code>PORTFOLIO-CASE-STUDY.md</code> and put it at the top of your portfolio. It presents all six weeks as one pipeline: what it is, the six stages, and the proof.</p>
+  <ul>
+    <li>Link the repo.</li>
+    <li>Link the green pull request and the red one.</li>
+    <li>Link or screenshot the <code>opa test</code> run, the <code>CHAIN INTACT</code> verification, and the <code>trestle validate</code> VALID output.</li>
+  </ul>
+  <p>Lead with evidence, not adjectives. A hiring manager should understand what you built in 60 seconds and be able to click through to proof of every claim.</p>
+  <p>Then two short, honest sections: what you would do next with more time, and the one non-obvious thing that clicked. Those two are where you show judgment, and judgment is what the job is actually about.</p>
+  <p>When that page is live, you have something almost nobody applying for these roles has: a public, working, verifiable demonstration that you can build the thing, not just talk about it.</p>
+
+  <h2>Done when</h2>
+  <ul class="checklist">
+    <li><code>trestle validate</code> returns <code>VALID</code> for the component and the profile.</li>
+    <li>At least one evidence link resolves to a real signed bundle, and running <code>verify-evidence.sh</code> against it prints <code>CHAIN INTACT</code>.</li>
+    <li>The case study is published at the top of your portfolio and links to the repo.</li>
+  </ul>
+
+  <h2>On GCP?</h2>
+  <p>OSCAL is cloud-agnostic by design. The controls are NIST controls regardless of cloud. Your implemented-requirements name <code>google_storage_bucket</code> and its siblings instead of the AWS resources, and your evidence links point at your bundles. The document looks the same, which is the entire reason this format exists.</p>
+
+  <h2>Make it a portfolio piece</h2>
+  <p>This whole week is the portfolio piece. The OSCAL directory and the case study are the capstone of the challenge. Ship them both, then post your finished portfolio, the entire six-week build presented as one system.</p>
+  <p>Post it on LinkedIn. Tag GRC Engineering Club, use <strong>#GRCEngClubChallenge</strong>, and tell people what you built across six weeks. This is the post that gets seen, because it is proof, and proof is rare.</p>
+
+  <h2>Common snags</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Snag</th><th>Fix</th></tr>
+    <tr><td>UUID regex errors</td><td>OSCAL wants v4 UUIDs and rejects anything else. Do not hand-write them. Generate each one with <code>python3 -c "import uuid; print(uuid.uuid4())"</code>.</td></tr>
+    <tr><td><code>oscal-version</code> mismatch</td><td>The catalog, profile, and component all have to share an <code>oscal-version</code>. Let trestle pin it and do not mix. Check yours with <code>trestle version</code>.</td></tr>
+    <tr><td>Validation fails on missing fields</td><td>The schema is verbose. Use trestle to inspect what a model requires instead of guessing.</td></tr>
+    <tr><td>Evidence links that go nowhere</td><td>OSCAL does not check that your links resolve. A broken link is a useless attestation. Follow your own references and confirm they land.</td></tr>
+  </table>
+  </div>
+
+  <hr>
+
+  <p>That is the pipeline. Six weeks ago you had a bucket. Now you have a system that builds compliant infrastructure, proves it, gates it, signs it, monitors it, and maps it to controls an assessor can verify without you in the room.</p>
+
+  <h2>The rewards come next!</h2>
+  <div class="prize">
+    <p><strong>$1,000 prize pool for finishers.</strong></p>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Place</th><th>Prize</th><th>How it's decided</th></tr>
+      <tr><td>1st</td><td>$500</td><td>An AI evaluation of your submitted repo picks the winner. It looks at pipeline completeness, evidence quality, and the strength of your case study.</td></tr>
+      <tr><td>2nd</td><td>$250</td><td>Random raffle from all finishers</td></tr>
+      <tr><td>3rd</td><td>$250</td><td>Random raffle from all finishers</td></tr>
+    </table>
+    </div>
+    <p>You are eligible by finishing the challenge. That means the full pipeline passes end to end: <code>terraform validate</code>, <code>conftest</code>, <code>trestle validate</code>, <code>cosign verify</code>, vault upload. If your &ldquo;Done when&rdquo; list above is checked, you qualify.</p>
+    <p><strong>Submit your repo at <a href="https://cert.grcengclub.com/challenge">cert.grcengclub.com/challenge</a> before July 31st.</strong> Winners announced the week after the challenge ends.</p>
+  </div>
+</main>
+</body>
+</html>
