@@ -1,12 +1,16 @@
 "Security Hub gave me zero findings. For 45 minutes."
 
+Final GRC weekly challenge before the capstone! Week 5 was called "Turn On the Cameras." It turned out to be nothing remotely close to what I expected — and, as embarrassing as it is to admit publicly, it taught me about built-in tools I should have been using years ago. The main surprise was AWS Security Hub.
+
+Up until today, when I needed CIS benchmarking or AWS best-practice reporting, I reached for Steampipe.io. Before moving to Steampipe.io, I had been using Threatstack. We've been evaluating GuardDuty for a variety of reasons — but Week 5 corrected my mental model: the native tool that does what I use Steampipe for is Security Hub, while GuardDuty is threat detection (and can take over the file scanning we use ClamAV for).
+
 Not "still loading." Zero — and it would have stayed zero forever.
 
 I was standing up AWS Security Hub with the NIST 800-53 baseline for a GRC chain-of-custody project. Enabled it, subscribed the standard, waited. Nothing. Every standard sat INCOMPLETE, reason: NO_AVAILABLE_CONFIGURATION_RECORDER.
 
 Here's the nuance, and it's the whole lesson:
 
-→ Security Hub is a REPORTING layer, not a sensor. It does not inspect your resources directly. It reads the resource state that AWS Config records.
+→ Security Hub is a REPORTING layer, not a sensor. It largely reads the resource state that AWS Config records — it doesn't inspect most of your resources directly.
 
 → No Config recorder means no data to grade. The checks can't run, so nothing comes out — not even the "AWS Config should be enabled" finding. The dashboard that's supposed to tell you Config is off can't tell you anything, because it needs Config to tell you.
 
@@ -18,9 +22,9 @@ It's: "I turned on the sensor (Config) AND the grader (Security Hub), and I conf
 
 That last clause is the GRC discipline. A control that's ON is not the same as a control that's WORKING. The gap between them is exactly where an empty dashboard hides.
 
-I added Config in Terraform, and findings populated in 30 minutes. First critical finding? Config.1 — flagging that my own Config setup used a custom role instead of the service-linked one. The pipeline caught me. That's it working.
+I added Config in Terraform, and findings populated within about 15 minutes. First critical finding? Config.1 — flagging that my own Config setup used a custom role instead of the service-linked one. The pipeline caught me. That's it working.
 
-Native controls captured, signed into the same chain of custody as my Terraform plan, torn down the same day. Pennies.
+Native controls captured, signed into the same chain of custody as my Terraform evidence, torn down the same day. Pennies.
 
 Verify a control is producing data before you report on it. "On" is a claim. "Producing evidence" is a control.
 
