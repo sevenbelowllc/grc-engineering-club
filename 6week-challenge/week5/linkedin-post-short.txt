@@ -1,0 +1,20 @@
+"Security Hub gave me zero findings. For 45 minutes."
+
+Not "still loading." Zero — and it would have stayed zero forever.
+
+Week 5 of the GRC challenge ("Turn On the Cameras") taught me a built-in tool I should have been using years ago — and humbled me. I stood up AWS Security Hub with the NIST 800-53 baseline, subscribed the standard, and waited. Every standard sat INCOMPLETE: NO_AVAILABLE_CONFIGURATION_RECORDER.
+
+The lesson:
+
+→ Security Hub is a REPORTING layer, not a sensor. It reads the resource state that AWS Config records. No Config recorder = no data to grade = zero findings — not even the "AWS Config should be enabled" finding, because that check needs Config too.
+
+The guidance called Config "optional." For a fresh account it's a hard dependency. Turn on the grader without the sensor and you get a confident, empty, green-looking dashboard — worse than no dashboard, because it looks like coverage.
+
+I added Config in Terraform; findings populated in about 15 minutes. The first critical one? Config.1 — flagging that my own Config used a custom role instead of the service-linked one. The pipeline caught me. That's it working.
+
+A control that's ON is not the same as a control that's WORKING. Verify a control is actually producing data before you report on it.
+
+"On" is a claim. "Producing evidence" is a control.
+
+#GRCEngineering #CloudSecurity #AWS #GRCEngClubChallenge
+(tagging GRC Engineering Club)
