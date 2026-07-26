@@ -12,7 +12,7 @@ Nothing here trusts the author — that's the point.
 ```bash
 export AWS_PROFILE=default
 export AWS_REGION=us-west-2
-cd 6week-challenge/week5
+cd 6week-challenge/week-5
 ```
 
 Concrete resource names in this deployment (yours differ only by the random
@@ -190,7 +190,7 @@ cosign verify-blob --bundle evidence/week5-evidence.tar.gz.sig.bundle \
 ```bash
 EXPECT_ISSUER='https://accounts.google.com' \
 EXPECT_IDENTITY='^dkramer@sevenbelow\.com$' \
-  ../week4/verify-evidence.sh evidence/week5-evidence.tar.gz
+  ../week-4/verify-evidence.sh evidence/week5-evidence.tar.gz
 ```
 **Good:** `integrity: OK` → `authenticity: OK` → `CHAIN INTACT`. `cosign` also
 confirms the signature is recorded in Sigstore's public **Rekor** transparency
@@ -204,7 +204,7 @@ cp evidence/week5-evidence.tar.gz.sha256 /tmp/t.tar.gz.sha256; \
 cp evidence/week5-evidence.tar.gz.sig.bundle /tmp/t.tar.gz.sig.bundle; \
 echo junk >> /tmp/t.tar.gz
 EXPECT_ISSUER='https://accounts.google.com' EXPECT_IDENTITY='^dkramer@sevenbelow\.com$' \
-  ../week4/verify-evidence.sh /tmp/t.tar.gz; echo "exit=$?"
+  ../week-4/verify-evidence.sh /tmp/t.tar.gz; echo "exit=$?"
 rm -f /tmp/t.tar.gz*
 ```
 **Good:** `FAIL: integrity: sha256 mismatch`, `exit=1`. Custody is mathematical,

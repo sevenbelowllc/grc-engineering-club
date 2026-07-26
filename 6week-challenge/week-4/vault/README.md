@@ -7,7 +7,7 @@ nothing runs in CI until you set the `EVIDENCE_VAULT_BUCKET` repo variable.
 ## Apply (pennies, tear down same day)
 
 ```bash
-cd 6week-challenge/week4/vault
+cd 6week-challenge/week-4/vault
 terraform init
 terraform apply \
   -var "bucket_name=grc-evidence-vault-$(date +%s)" \
@@ -18,9 +18,9 @@ terraform apply \
 
 ```bash
 aws s3api put-object --bucket "$BUCKET" --key run-1/evidence.tar.gz \
-  --body 6week-challenge/week4/evidence/evidence.tar.gz
+  --body 6week-challenge/week-4/evidence/evidence.tar.gz
 EVIDENCE_VAULT_BUCKET="$BUCKET" EVIDENCE_VAULT_KEY=run-1/evidence.tar.gz \
-  ./6week-challenge/week4/verify-evidence.sh 6week-challenge/week4/evidence/evidence.tar.gz
+  ./6week-challenge/week-4/verify-evidence.sh 6week-challenge/week-4/evidence/evidence.tar.gz
 ```
 
 ## The overwrite test (the point)

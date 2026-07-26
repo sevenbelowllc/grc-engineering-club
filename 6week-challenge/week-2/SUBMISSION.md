@@ -131,7 +131,7 @@ the gate isolates the one control that broke. Full captured output:
 ## Run it yourself
 
 ```bash
-# from 6week-challenge/week2
+# from 6week-challenge/week-2
 opa test policies/ -v                                                          # 6/6
 conftest test --policy policies --namespace compliance.sc28_aws evidence/plan-compliant.json
 conftest test --policy policies --namespace compliance.sc28_aws evidence/plan-broken.json   # FAIL, by design

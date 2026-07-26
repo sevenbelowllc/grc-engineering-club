@@ -34,7 +34,7 @@ escalating to a human only when a control actually fails.
 
 ```
 .github/workflows/grc-gate.yml   the LIVE gate (must be at repo root to trigger)
-6week-challenge/week3/
+6week-challenge/week-3/
   policies/           the three week-2 deny policies (tests stay in week2)
   plan.json           committed COMPLIANT plan — the green-PR fixture
   plan-broken.json    same plan with encryption removed — the red-PR fixture
@@ -85,7 +85,7 @@ terraform to enable it. See [`oidc/README-oidc.md`](./oidc/README-oidc.md).
 ## Reproduce the gate locally
 
 ```bash
-cd 6week-challenge/week3
+cd 6week-challenge/week-3
 conftest test plan.json --policy policies \
   --namespace compliance.sc28_aws \
   --namespace compliance.ac3_aws \

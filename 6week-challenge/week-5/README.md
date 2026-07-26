@@ -33,7 +33,7 @@ terraform init && terraform apply          # review, type: yes  (billing starts)
 cd .. && ./capture-evidence.sh             # -> IsLogging true, findings >= 1, replica objects
 ./sign-evidence.sh                         # keyless cosign; one browser login
 # verify (pin the identity you signed with):
-EXPECT_ISSUER='<issuer>' EXPECT_IDENTITY='^<you>$' ../week4/verify-evidence.sh evidence/week5-evidence.tar.gz
+EXPECT_ISSUER='<issuer>' EXPECT_IDENTITY='^<you>$' ../week-4/verify-evidence.sh evidence/week5-evidence.tar.gz
 terraform -chdir=terraform destroy         # same day — billing stops
 ```
 
@@ -66,5 +66,5 @@ teardown.sh         capture (safety) then terraform destroy
 evidence/           captured + signed evidence (committed)
 ```
 
-Verification reuses week-4's [`verify-evidence.sh`](../week4/verify-evidence.sh)
+Verification reuses week-4's [`verify-evidence.sh`](../week-4/verify-evidence.sh)
 — one chain of custody across both weeks.
