@@ -34,7 +34,7 @@
   .card {
     width: 1080px;
     max-width: 100%;
-    aspect-ratio: 1080 / 1350;
+    min-height: 1350px;
     background:
       linear-gradient(180deg, #0e1626 0%, #0b1018 55%, #0a0e16 100%);
     border: 1px solid var(--line);
@@ -105,7 +105,7 @@
   @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
 
   /* ---- hook ---- */
-  .hook { padding-top: 5.2cqw; padding-bottom: 4.4cqw; }
+  .hook { padding-top: 3.4cqw; padding-bottom: 3.2cqw; }
   .hook .kicker {
     font-family: var(--mono);
     font-size: 1.6cqw;
@@ -116,15 +116,15 @@
   }
   .hook h1 {
     margin: 0;
-    font-size: 7.4cqw;
-    line-height: 0.98;
+    font-size: 6.7cqw;
+    line-height: 0.99;
     font-weight: 800;
     letter-spacing: -0.02em;
     text-wrap: balance;
   }
   .hook h1 .z { color: var(--amber); }
   .hook .sub {
-    margin: 3cqw 0 0;
+    margin: 2.3cqw 0 0;
     font-size: 2.5cqw;
     line-height: 1.32;
     color: var(--muted);
@@ -202,11 +202,11 @@
 
   /* ---- thesis strip ---- */
   .thesis {
-    margin-top: 4cqw;
+    margin-top: 2.6cqw;
     display: flex; align-items: baseline; gap: 2.4cqw;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
-    padding: 3.4cqw 0;
+    padding: 2.7cqw 0;
   }
   .thesis .big {
     font-size: 4.6cqw; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap;
@@ -216,7 +216,7 @@
 
   /* ---- stats ---- */
   .stats {
-    margin-top: 3.6cqw;
+    margin-top: 2.7cqw;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.2cqw;
