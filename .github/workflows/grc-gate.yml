@@ -166,8 +166,16 @@ jobs:
           fi
           tar -czf "${WEEK3_DIR}/evidence.tar.gz" \
             -C "${WEEK3_DIR}/evidence" "${FILES[@]}"
-          sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
-            | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
+          # Write the sidecar in the standard "<hash>  <name>" form, from inside
+          # the bundle's directory so the recorded name is bare.
+          #
+          # It used to be `sha256sum … | awk '{print $1}'`, a bare hash. That is
+          # readable by verify-evidence.sh, which takes field 1, but NOT by
+          # `sha256sum -c` — so the one command anybody would reach for first
+          # failed on our own evidence. Running from the directory also keeps
+          # the workspace path (6week-challenge/week-3/…) out of published
+          # evidence; same defect week 5 had with an absolute path.
+          ( cd "${WEEK3_DIR}" && sha256sum evidence.tar.gz > evidence.tar.gz.sha256 )
           cosign sign-blob --yes \
             --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
             "${WEEK3_DIR}/evidence.tar.gz"

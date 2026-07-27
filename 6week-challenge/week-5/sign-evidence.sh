@@ -6,15 +6,31 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 EV="$HERE/evidence"
 BUNDLE="$EV/week5-evidence.tar.gz"
 
+# GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so this
+# runs unmodified on a Linux CI runner or in a container, and fall back so it
+# still works on a developer's Mac. Both emit the identical "<hash>  <name>"
+# format, so a sidecar written by either is readable by `sha256sum -c` and by
+# `shasum -c` alike.
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1"
+  else
+    echo "need sha256sum or shasum on PATH" >&2
+    exit 1
+  fi
+}
+
 tar -C "$EV" -czf "$BUNDLE" \
   security-hub-findings.json cloudtrail-status.json replica-listing.txt
 # Write the sidecar with a RELATIVE filename, not an absolute one. An absolute
 # path bakes this machine's home directory into published evidence and makes
-# `shasum -c` fail for anyone who clones the repo. Running from $EV keeps the
-# recorded name bare, so `cd evidence && shasum -c week5-evidence.tar.gz.sha256`
+# `sha256sum -c` fail for anyone who clones the repo. Running from $EV keeps the
+# recorded name bare, so `cd evidence && sha256sum -c week5-evidence.tar.gz.sha256`
 # works anywhere. Field 1 is still the hash, so week-4's verify-evidence.sh
 # (which does `awk '{print $1}'`) reads it unchanged.
-( cd "$EV" && shasum -a 256 "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
+( cd "$EV" && sha256_file "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
 
 # Keyless: opens a browser once for OIDC identity. Note the issuer + identity it
 # prints — you pin them when verifying.

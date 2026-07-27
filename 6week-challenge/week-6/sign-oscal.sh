@@ -29,6 +29,21 @@ BUNDLE="$EV/oscal-documents.tar.gz"
 
 mkdir -p "$EV"
 
+# GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so this
+# runs unmodified on a Linux CI runner or in a container, and fall back so it
+# still works on a developer's Mac. Both emit the identical "<hash>  <name>"
+# format, so either tool can verify the other's sidecar.
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1"
+  else
+    echo "need sha256sum or shasum on PATH" >&2
+    exit 1
+  fi
+}
+
 # Sign the documents, not the workspace. .trestle/, dist/ and the empty model
 # directories are scaffolding — including them would mean the signature changes
 # whenever trestle's own layout changes, which makes the signature about the
@@ -55,9 +70,9 @@ echo "==> bundling"
 tar -C "$OSCAL" -czf "$BUNDLE" "${DOCS[@]}"
 
 # Relative filename in the sidecar, not absolute: an absolute path bakes this
-# machine's home directory into published evidence and breaks `shasum -c` for
+# machine's home directory into published evidence and breaks `sha256sum -c` for
 # anyone who clones the repo. (Same fix as week 5 — see its sign-evidence.sh.)
-( cd "$EV" && shasum -a 256 "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
+( cd "$EV" && sha256_file "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
 
 echo
 echo "==> signing (a browser will open for OIDC)"

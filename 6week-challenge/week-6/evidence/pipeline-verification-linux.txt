@@ -1,0 +1,49 @@
+# verify-pipeline.sh on Linux, in a container, from a clean checkout.
+#
+# The point of this transcript is that nothing here is a Mac. The build is
+# developed on macOS and runs in GitHub Actions on Ubuntu, so the scripts
+# have to be correct on both — and two bugs found by actually running them
+# here proved that is not automatic.
+#
+#   image      Debian GNU/Linux 12 (bookworm) (aarch64)
+#   bash       5.2.15(1)-release (aarch64-unknown-linux-gnu)
+#   jq         jq-1.6
+#   coreutils  sha256sum (GNU coreutils) 9.1
+#   terraform  Terraform v1.9.8
+#   conftest   Conftest: 0.68.2
+#   trestle    Trestle version v4.2.0 based on OSCAL version 1.2.1
+#   cosign     GitVersion:    v3.1.2
+#   captured   2026-07-27T03:32:39Z
+
+
+1. terraform validate — the infrastructure parses and type-checks
+  [PASS] week-1/solution
+  [PASS] week-3/terraform
+  [PASS] week-5/terraform
+  [PASS] week-6/terraform
+
+2. conftest — the policy gate denies what it is supposed to deny
+  [PASS] compliant plan passes the gate
+  [PASS] broken plan is denied by the gate
+
+3. trestle validate — the OSCAL documents are schema-valid
+  [PASS] all 5 OSCAL documents VALID
+
+4. cosign verify — the evidence is authentic and intact
+  [PASS] week-4 gate evidence — 2 leg(s) verified, CHAIN INTACT
+  [PASS] week-5 runtime evidence — 2 leg(s) verified, CHAIN INTACT
+
+5. vault preservation — the evidence cannot be deleted
+  [SKIP] vault preservation
+    the AWS CLI is not installed
+
+6. traversal — profile to verified evidence, following only the documents
+  [PASS] 4/4 control(s) walked from profile to verified evidence
+
+------------------------------------------------------------------------
+10 passed, 0 failed, 1 skipped
+
+PIPELINE PASS (with 1 check(s) skipped — see above)
+A skipped check is a check nobody has done. Install the missing tools for a complete run.
+
+exit=0

@@ -52,12 +52,32 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 rule() { printf '%s\n' "------------------------------------------------------------------------"; }
 
 # --- 1. PROFILE: what is in scope ------------------------------------------
-CONTROLS="$(jq -r '.profile.imports[].["include-controls"][]?.["with-ids"][]?' "$PROFILE")"
+# Written as a pipeline of plain `.["key"]` steps rather than the more compact
+# `.imports[].["include-controls"]`. That compact form is accepted by jq 1.7 but
+# is a syntax error in jq 1.6, which is what Debian 12 and Ubuntu 22.04 ship —
+# so the tidier spelling worked on the author's Mac and produced an empty list
+# everywhere else.
+CONTROLS="$(jq -r '
+  .profile.imports[]
+  | .["include-controls"][]?
+  | .["with-ids"][]?' "$PROFILE")"
 CATALOG="$(jq -r '.profile.imports[0].href' "$PROFILE")"
 
 bold "profile: $(jq -r '.profile.metadata.title' "$PROFILE")"
 echo "  catalog:  $CATALOG"
 echo "  in scope: $(echo "$CONTROLS" | tr '\n' ' ')"
+
+# An empty selection is a broken profile, not an empty success. Without this the
+# script walks zero controls, never enters the loop, never increments FAIL, and
+# prints "TRAVERSAL COMPLETE — 0/0" with exit 0 — a green result that verified
+# nothing, which is the exact failure this whole pipeline exists to prevent.
+if [ -z "${CONTROLS//[[:space:]]/}" ]; then
+  echo >&2
+  echo "BROKEN GRAPH: the profile selects no controls." >&2
+  echo "Either include-controls is empty, or jq could not read it — check that" >&2
+  echo "\`jq -r '.profile.imports[] | .[\"include-controls\"][]?' $PROFILE\` returns rows." >&2
+  exit 1
+fi
 
 if [ -n "$WANT" ]; then
   echo "$CONTROLS" | grep -qx "$WANT" || {
@@ -171,11 +191,12 @@ for CONTROL in $CONTROLS; do
   fi
 
   echo
-  # ${arr[@]+"${arr[@]}"} rather than "${arr[@]}": macOS still ships bash 3.2,
-  # where expanding an EMPTY array under `set -u` aborts with "unbound
-  # variable". VAULT_ENV is empty in exactly the common case — a reader who
-  # cloned this repo and has no AWS credentials — so the plain form would break
-  # the script for its entire intended audience while working fine here.
+  # ${arr[@]+"${arr[@]}"} rather than "${arr[@]}": on bash before 4.4, expanding
+  # an EMPTY array under `set -u` aborts with "unbound variable". That includes
+  # the bash 3.2 macOS ships and some older container images. VAULT_ENV is empty
+  # in exactly the common case — a reader with no AWS credentials — so the plain
+  # form breaks the script for most of its audience. This form is correct on
+  # every bash from 3.2 up.
   if env ${VAULT_ENV[@]+"${VAULT_ENV[@]}"} \
        EXPECT_ISSUER="$ISSUER" EXPECT_IDENTITY="$IDENTITY" \
        "$VERIFY" "$DEST/$NAME" 2>&1 | sed 's/^/  /'; then

@@ -173,6 +173,7 @@ and a decoration.
 | File | What it shows |
 |---|---|
 | [`evidence/pipeline-verification.txt`](evidence/pipeline-verification.txt) | `./verify-pipeline.sh` — 12 checks, 12 passed, 0 skipped |
+| [`evidence/pipeline-verification-linux.txt`](evidence/pipeline-verification-linux.txt) | The same run in a Debian 12 container — bash 5.2, jq 1.6, GNU coreutils. 10 passed, 0 failed, 1 skipped (no AWS CLI, correctly reported as a skip rather than a pass) |
 | [`evidence/chain-intact-four-legs.txt`](evidence/chain-intact-four-legs.txt) | All four legs green: integrity, authenticity, timeliness, preservation |
 | [`evidence/vault-preservation-proof.txt`](evidence/vault-preservation-proof.txt) | COMPLIANCE Object Lock config, retention, and a hard delete refused with **admin** credentials |
 | [`evidence/converter-guards.txt`](evidence/converter-guards.txt) | The denying gate, both mapping guards, and the determinism diff |

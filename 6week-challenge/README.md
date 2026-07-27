@@ -136,3 +136,25 @@ The preservation leg of `verify-evidence.sh` reads Object Lock retention from a
 private vault, so without AWS credentials it reports `skipped` rather than
 passing. That is the intended behaviour: an unreadable vault is not a verified
 vault.
+
+### Portability is a requirement, not a hope
+
+Every script targets **Linux and generalised bash**, not the machine it was
+written on. That means bash 3.2 idioms where they cost nothing, `sha256sum` with
+a `shasum` fallback, and jq filters that parse on 1.6 as well as 1.7.
+
+It is verified by running, not asserted. This is the same
+`./verify-pipeline.sh` inside a Debian 12 container:
+
+```
+#   image      Debian GNU/Linux 12 (bookworm) (aarch64)
+#   bash       5.2.15(1)-release    jq  jq-1.6    coreutils  GNU 9.1
+...
+10 passed, 0 failed, 1 skipped
+```
+
+Full transcript:
+[`week-6/evidence/pipeline-verification-linux.txt`](week-6/evidence/pipeline-verification-linux.txt).
+
+Running it there was not a formality — it caught two bugs that macOS hid,
+including one that reported success while verifying nothing. See the commit log.
