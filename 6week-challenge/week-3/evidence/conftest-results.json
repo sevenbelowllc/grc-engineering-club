@@ -1,0 +1,17 @@
+[
+	{
+		"filename": "6week-challenge/week3/plan.json",
+		"namespace": "compliance.sc28_aws",
+		"successes": 1
+	},
+	{
+		"filename": "6week-challenge/week3/plan.json",
+		"namespace": "compliance.ac3_aws",
+		"successes": 1
+	},
+	{
+		"filename": "6week-challenge/week3/plan.json",
+		"namespace": "compliance.cm6_aws",
+		"successes": 1
+	}
+]

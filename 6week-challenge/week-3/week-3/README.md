@@ -1,3 +1,20 @@
+> ## ⚠️ Unmodified starter scaffolding — not the solution
+>
+> Everything in this directory is the **challenge's starter skeleton, exactly as
+> shipped**. The `grc-gate.yml` beside this file is a stub containing only `TODO`
+> comments; it has never run and *cannot* run — GitHub Actions only discovers
+> workflows under `.github/workflows/` at the **repository root**, not in a
+> subdirectory.
+>
+> **The working gate is [`.github/workflows/grc-gate.yml`](../../../.github/workflows/grc-gate.yml)**
+> at the repo root — complete, with a pinned Conftest version, keyless signing,
+> evidence upload on failure, and a PR-comment verdict.
+>
+> This copy is kept only so the starting point is visible next to the finished
+> result. See [`../README.md`](../README.md) for the full explanation.
+
+---
+
 # Week 3 starter: Build the Gate
 
 A skeleton GitHub Actions workflow. You write the steps. The goal is a gate that runs your week 2 policies on every pull request and blocks the ones that break a control.
