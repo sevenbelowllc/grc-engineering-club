@@ -198,3 +198,16 @@ terraform.rc
 **/*-challenge-post.txt
 **/*-challenge.txt
 **/*-overview.txt
+**/*-notes.md
+**/*-notes.txt
+**/*-notes.html
+
+# --- Personal drafts (published to LinkedIn directly, not via this repo) ---
+**/linkedin-post*.txt
+**/LinkedIn-post*.txt
+
+# -- Ignore Terraform Repos
+/terraform-complyos-root-modules/
+/terraform-complyos-metadata/
+
+
