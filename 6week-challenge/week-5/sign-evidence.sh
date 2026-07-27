@@ -8,7 +8,13 @@ BUNDLE="$EV/week5-evidence.tar.gz"
 
 tar -C "$EV" -czf "$BUNDLE" \
   security-hub-findings.json cloudtrail-status.json replica-listing.txt
-shasum -a 256 "$BUNDLE" > "$BUNDLE.sha256"
+# Write the sidecar with a RELATIVE filename, not an absolute one. An absolute
+# path bakes this machine's home directory into published evidence and makes
+# `shasum -c` fail for anyone who clones the repo. Running from $EV keeps the
+# recorded name bare, so `cd evidence && shasum -c week5-evidence.tar.gz.sha256`
+# works anywhere. Field 1 is still the hash, so week-4's verify-evidence.sh
+# (which does `awk '{print $1}'`) reads it unchanged.
+( cd "$EV" && shasum -a 256 "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
 
 # Keyless: opens a browser once for OIDC identity. Note the issuer + identity it
 # prints — you pin them when verifying.
