@@ -22,7 +22,10 @@ cosign sign-blob --yes --bundle "$BUNDLE.sig.bundle" "$BUNDLE"
 
 echo
 echo "Signed: $BUNDLE"
-echo "Verify with the week-4 script, pinning the identity you just used, e.g.:"
-echo "  EXPECT_ISSUER='https://github.com/login/oauth' \\"
+echo "Verify with the week-4 script, pinning the identity you just used. EXPECT_ISSUER"
+echo "must be the provider you actually authenticated with at the cosign prompt — a"
+echo "wrong pin fails verification on a bundle that is perfectly good. The bundle"
+echo "committed to this repo was signed through Google:"
+echo "  EXPECT_ISSUER='https://accounts.google.com' \\"
 echo "  EXPECT_IDENTITY='^dkramer@sevenbelow\\.com$' \\"
 echo "  ../week-4/verify-evidence.sh $BUNDLE"
