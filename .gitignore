@@ -210,4 +210,11 @@ terraform.rc
 /terraform-complyos-root-modules/
 /terraform-complyos-metadata/
 
+# --- Per-run OSCAL assessment results ---
+# grc-gate.yml generates an assessment-results document for each workflow run
+# and puts it in that run's signed evidence bundle. It describes one run, so it
+# belongs in the bundle and the vault, not in the working tree — committing it
+# would put a mutable copy of an immutable fact under version control.
+6week-challenge/week-6/oscal/assessment-results/ci-run/
+
 
