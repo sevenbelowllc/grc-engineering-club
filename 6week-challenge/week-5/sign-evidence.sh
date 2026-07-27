@@ -6,15 +6,23 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 EV="$HERE/evidence"
 BUNDLE="$EV/week5-evidence.tar.gz"
 
-# --- portability: canonical hashing helper ----------------------------------
-# Keep this block byte-identical in every script that hashes:
-#   6week-challenge/week-4/verify-evidence.sh
-#   6week-challenge/week-5/sign-evidence.sh    (here)
-#   6week-challenge/week-6/sign-oscal.sh
-# It is duplicated rather than sourced from a shared lib because each week
-# directory has to stand alone — somebody copying week 4 out of this repo should
-# get a working verifier, not a dangling `source ../../lib/hash.sh`.
+# --- shared helpers ---------------------------------------------------------
+# Every function below is byte-identical wherever it appears. Where it appears:
 #
+#   fail                  week-4/verify-evidence.sh, week-5/sign-evidence.sh,
+#                         week-6/sign-oscal.sh
+#   sha256_file           week-4/verify-evidence.sh, week-5/sign-evidence.sh,
+#                         week-6/sign-oscal.sh
+#   write_sha256_sidecar  week-5/sign-evidence.sh, week-6/sign-oscal.sh
+#   read_sha256_sidecar   week-4/verify-evidence.sh
+#
+# They are duplicated rather than sourced from a shared lib because each week
+# directory has to stand alone — somebody copying week 4 out of this repo should
+# get a working verifier, not a dangling `source ../../lib/hash.sh`. The price of
+# that choice is drift, so the rule is blunt: change one, change all of them.
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
 # GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so
 # this runs unmodified on a Linux CI runner or in a container, fall back so it
 # still works on a developer's Mac, and fail loudly rather than skip the check
@@ -26,20 +34,29 @@ sha256_file() {
   elif command -v shasum >/dev/null 2>&1; then
     shasum -a 256 "$1"
   else
-    echo "need sha256sum or shasum on PATH" >&2
-    exit 1
+    fail "need sha256sum or shasum on PATH"
   fi
+}
+
+# Write <file>.sha256 beside <file>, recording a BARE filename.
+#
+# The `cd` is the entire point. Both tools record the path they were handed, so
+# hashing an absolute path bakes the signer's home directory into published
+# evidence and `sha256sum -c` then fails for everyone who clones the repo.
+# Hashing from inside the directory keeps the recorded name bare, so
+# `cd evidence && sha256sum -c <name>.sha256` works anywhere.
+write_sha256_sidecar() {
+  local target="$1" dir name
+  [ -f "$target" ] || fail "cannot hash, no such file: $target"
+  dir="$(cd "$(dirname "$target")" && pwd)" || fail "cannot resolve directory of: $target"
+  name="$(basename "$target")"
+  ( cd "$dir" && sha256_file "$name" > "$name.sha256" ) \
+    || fail "could not write sidecar for: $target"
 }
 
 tar -C "$EV" -czf "$BUNDLE" \
   security-hub-findings.json cloudtrail-status.json replica-listing.txt
-# Write the sidecar with a RELATIVE filename, not an absolute one. An absolute
-# path bakes this machine's home directory into published evidence and makes
-# `sha256sum -c` fail for anyone who clones the repo. Running from $EV keeps the
-# recorded name bare, so `cd evidence && sha256sum -c week5-evidence.tar.gz.sha256`
-# works anywhere. Field 1 is still the hash, so week-4's verify-evidence.sh
-# (which does `awk '{print $1}'`) reads it unchanged.
-( cd "$EV" && sha256_file "$(basename "$BUNDLE")" > "$(basename "$BUNDLE").sha256" )
+write_sha256_sidecar "$BUNDLE"
 
 # Keyless: opens a browser once for OIDC identity. Note the issuer + identity it
 # prints — you pin them when verifying.
