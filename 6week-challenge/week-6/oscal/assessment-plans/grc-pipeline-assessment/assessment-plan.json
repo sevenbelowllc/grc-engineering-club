@@ -1,0 +1,95 @@
+{
+  "assessment-plan": {
+    "uuid": "2060b4c6-9ad8-4b9d-8afe-bc9180f9c517",
+    "metadata": {
+      "last-modified": "2026-07-27T02:38:42.566427+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "roles": [
+        {
+          "id": "provider",
+          "title": "Pipeline provider",
+          "description": "Builds and operates the pipeline, and stands behind the claims in this document."
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "9aad2895-0323-472f-a7ba-246a5a482231",
+          "type": "organization",
+          "name": "Sevenbelow LLC",
+          "links": [
+            {
+              "href": "https://github.com/sevenbelowllc/grc-engineering-club",
+              "rel": "reference"
+            }
+          ]
+        }
+      ],
+      "responsible-parties": [
+        {
+          "role-id": "provider",
+          "party-uuids": [
+            "9aad2895-0323-472f-a7ba-246a5a482231"
+          ]
+        }
+      ],
+      "title": "GRC Engineering Pipeline \u2014 continuous assessment plan",
+      "remarks": "What gets assessed, how, and how often. The assessment is not a point-in-time exercise: the plan-time portion runs on every pull request as a required status check, so its results are regenerated continuously rather than commissioned annually."
+    },
+    "import-ssp": {
+      "href": "#8945dd11-f427-487c-9fcf-578f50e42c8b",
+      "remarks": "Not an SSP. This assessment targets the component definition 'grc-pipeline', which describes a reusable pipeline rather than an authorized system. OSCAL requires import-ssp on an assessment plan, so the reference points at a back-matter resource for the component definition. Read as: the subject of this assessment is the component, and no system authorization boundary is being claimed."
+    },
+    "reviewed-controls": {
+      "control-selections": [
+        {
+          "description": "Assessed on every pull request by automated policy evaluation (Conftest/OPA) against the Terraform plan, before apply.",
+          "include-controls": [
+            {
+              "control-id": "ac-3"
+            },
+            {
+              "control-id": "cm-6"
+            },
+            {
+              "control-id": "sc-28"
+            }
+          ]
+        },
+        {
+          "description": "Assessed by examining captured output from the running AWS account. Not evaluable at plan time \u2014 see the remarks.",
+          "include-controls": [
+            {
+              "control-id": "au-3"
+            }
+          ]
+        }
+      ],
+      "remarks": "The split between the two selections is the assurance boundary of this pipeline, stated in the model rather than in a footnote.\n\nThe first selection is enforcement: a pull request that would remove bucket encryption fails the gate and cannot merge, so a violation never reaches the account. That is strong, and it is also entirely a claim about intent \u2014 it assesses what Terraform says it will do.\n\nThe second selection is observation: CloudTrail delivery is a runtime property, so the only way to assess it is to look at the running system. That is a claim about reality, and it is true of the moment it was captured rather than of every future change.\n\nNeither method subsumes the other. Drift introduced outside Terraform is invisible to the first and visible to the second only if Security Hub or Config happens to have a rule for it."
+    },
+    "assessment-assets": {
+      "assessment-platforms": [
+        {
+          "uuid": "dbd3c046-4809-462d-82b1-f8f9963d06ff",
+          "title": "GitHub Actions grc-gate workflow",
+          "remarks": "Runs terraform validate, terraform plan -json, conftest against the Rego policies, opa test on the policy unit tests, and trestle validate on these OSCAL documents; then signs the resulting evidence bundle with keyless cosign and deposits it in the WORM vault. The assessor is a workflow, not a person, which is why its results are reproducible."
+        }
+      ]
+    },
+    "back-matter": {
+      "resources": [
+        {
+          "uuid": "8945dd11-f427-487c-9fcf-578f50e42c8b",
+          "title": "Component definition: GRC Engineering Pipeline",
+          "description": "The subject of this assessment. Stands in for the SSP that OSCAL's import-ssp field expects.",
+          "rlinks": [
+            {
+              "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-6/oscal/component-definitions/grc-pipeline/component-definition.json",
+              "media-type": "application/json"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
