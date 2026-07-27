@@ -1,5 +1,18 @@
 # Week 4 Submission — Evidence You Can Trust
 
+> **Status note added in week 6.** This document describes week 4 as submitted,
+> when preservation was a *dormant* stretch — designed, validated, not applied.
+> **It is applied now.** Week 6 composes this vault design with week 3's OIDC
+> role into [`week-6/terraform/`](../week-6/terraform/), because an S3 bucket
+> policy cannot name a principal that does not exist, so the two had to go up
+> together. Both the week-4 and week-5 bundles are deposited under
+> COMPLIANCE-mode Object Lock, a hard delete with admin credentials was
+> [refused](../week-6/evidence/vault-preservation-proof.txt), and the verifier's
+> preservation check now prints `OK` instead of `skipped`.
+>
+> The body below is left as submitted rather than back-edited. Rewriting a
+> submission to match a later state is how a repository stops being a record.
+
 ## Writeup
 
 Week 3 built a gate that produces evidence on every run. But that evidence was
