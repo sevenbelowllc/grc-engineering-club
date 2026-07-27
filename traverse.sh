@@ -171,7 +171,13 @@ for CONTROL in $CONTROLS; do
   fi
 
   echo
-  if env "${VAULT_ENV[@]}" EXPECT_ISSUER="$ISSUER" EXPECT_IDENTITY="$IDENTITY" \
+  # ${arr[@]+"${arr[@]}"} rather than "${arr[@]}": macOS still ships bash 3.2,
+  # where expanding an EMPTY array under `set -u` aborts with "unbound
+  # variable". VAULT_ENV is empty in exactly the common case — a reader who
+  # cloned this repo and has no AWS credentials — so the plain form would break
+  # the script for its entire intended audience while working fine here.
+  if env ${VAULT_ENV[@]+"${VAULT_ENV[@]}"} \
+       EXPECT_ISSUER="$ISSUER" EXPECT_IDENTITY="$IDENTITY" \
        "$VERIFY" "$DEST/$NAME" 2>&1 | sed 's/^/  /'; then
     PASS=$((PASS + 1))
   else
