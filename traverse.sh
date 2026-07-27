@@ -68,8 +68,39 @@ command -v jq >/dev/null || usage "needs jq on PATH"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-bold() { printf '\033[1m%s\033[0m\n' "$*"; }
+# --- reporting vocabulary ---------------------------------------------------
+# Byte-identical to the copy in verify-pipeline.sh. Each script carries the
+# subset it uses; every definition below is identical wherever it appears.
+# Change one, change the other.
+#
+#   c_bold c_green c_red c_grey   inline colourisers, no trailing newline
+#   rule                          a horizontal rule
+#   title  section                a bold line; a bold line preceded by a blank
+#   ok  bad  skip                 one result line AND the counter that goes with it
+#   need                          is this tool on PATH
+#
+# The counters live inside ok/bad/skip deliberately. A reporting helper that
+# prints a failure without recording it is how a closing summary ends up
+# disagreeing with the body of output above it — and the summary is the part
+# people actually read.
+#
+# The closing message is NOT shared. Both scripts build it from `rule`, `c_bold`
+# and these counters, but each says its own thing, because "TRAVERSAL COMPLETE —
+# 4/4 control(s) walked" is quoted verbatim in the README, the submission and
+# the committed evidence transcripts. Unifying the words would churn documented
+# output for no gain; unifying the vocabulary that produces them is the point.
+PASS=0; FAIL=0; SKIP=0
+FAILED=()
+
+c_bold() { printf '\033[1m%s\033[0m' "$*"; }
+c_green() { printf '\033[32m%s\033[0m' "$*"; }
+c_red() { printf '\033[31m%s\033[0m' "$*"; }
+
 rule() { printf '%s\n' "------------------------------------------------------------------------"; }
+title() { printf '%s\n' "$(c_bold "$*")"; }
+
+ok() { printf '  [%s] %s\n' "$(c_green PASS)" "$1"; PASS=$((PASS + 1)); }
+bad() { printf '  [%s] %s\n' "$(c_red FAIL)" "$1"; FAIL=$((FAIL + 1)); FAILED+=("$1"); }
 
 # --- 1. PROFILE: what is in scope ------------------------------------------
 # Written as a pipeline of plain `.["key"]` steps rather than the more compact
@@ -83,7 +114,7 @@ CONTROLS="$(jq -r '
   | .["with-ids"][]?' "$PROFILE")"
 CATALOG="$(jq -r '.profile.imports[0].href' "$PROFILE")"
 
-bold "profile: $(jq -r '.profile.metadata.title' "$PROFILE")"
+title "profile: $(jq -r '.profile.metadata.title' "$PROFILE")"
 echo "  catalog:  $CATALOG"
 echo "  in scope: $(echo "$CONTROLS" | tr '\n' ' ')"
 
@@ -113,13 +144,10 @@ EOF
   CONTROLS="$WANT"
 fi
 
-PASS=0
-FAIL=0
-
 for CONTROL in $CONTROLS; do
   echo
   rule
-  bold "control: ${CONTROL}"
+  title "control: ${CONTROL}"
   rule
 
   # --- 2. COMPONENT: how it is implemented ---------------------------------
@@ -130,10 +158,8 @@ for CONTROL in $CONTROLS; do
     | select(.["control-id"] == $c)' "$COMPONENT")"
 
   if [ -z "$REQ" ]; then
-    echo "  BROKEN GRAPH: the profile selects $CONTROL but no implemented-requirement"
-    echo "  in the component definition covers it. The scope claims more than the"
-    echo "  implementation states."
-    FAIL=$((FAIL + 1))
+    bad "$CONTROL — BROKEN GRAPH: the profile selects it but no implemented-requirement covers it"
+    echo "         The scope claims more than the implementation states."
     continue
   fi
 
@@ -151,8 +177,7 @@ for CONTROL in $CONTROLS; do
   VAULT_URI="$(echo "$REQ" | jq -r '[.links[]? | select(.rel=="evidence") | .href | select(startswith("s3://"))][0] // empty')"
 
   if [ -z "$BUNDLE_URL" ]; then
-    echo "  BROKEN GRAPH: no fetchable rel=\"evidence\" link on this requirement."
-    FAIL=$((FAIL + 1))
+    bad "$CONTROL — BROKEN GRAPH: no fetchable rel=\"evidence\" link on this requirement"
     continue
   fi
   echo "  evidence:    $BUNDLE_URL"
@@ -167,9 +192,8 @@ for CONTROL in $CONTROLS; do
   echo "               via ${ISSUER:-<unpinned>}"
 
   if [ -z "$ISSUER" ] || [ -z "$IDENTITY" ]; then
-    echo "  BROKEN GRAPH: the document does not say who signed this evidence, so"
-    echo "  'verified' would mean 'signed by somebody'."
-    FAIL=$((FAIL + 1))
+    bad "$CONTROL — BROKEN GRAPH: the document does not say who signed this evidence"
+    echo "         Without a pinned identity, 'verified' would mean 'signed by somebody'."
     continue
   fi
 
@@ -186,18 +210,18 @@ for CONTROL in $CONTROLS; do
     echo "  [offline] copying from the working tree: 6week-challenge/$REL"
     for ext in "" ".sha256" ".sig.bundle"; do
       cp "$LOCAL$ext" "$DEST/$NAME$ext" 2>/dev/null || {
-        echo "  FETCH FAILED: no local $LOCAL$ext"; FAIL=$((FAIL + 1)); continue 2; }
+        bad "$CONTROL — FETCH FAILED: no local $LOCAL$ext"; continue 2; }
     done
   else
     echo "  fetching the bundle, its sidecar and its signature from the published URL"
     OK=1
     for ext in "" ".sha256" ".sig.bundle"; do
       curl -fsSL --max-time 60 -o "$DEST/$NAME$ext" "$BUNDLE_URL$ext" || {
-        echo "  FETCH FAILED: $BUNDLE_URL$ext did not resolve."
-        echo "  An evidence link that 404s is an attestation that proves nothing."
+        bad "$CONTROL — FETCH FAILED: $BUNDLE_URL$ext did not resolve"
+        echo "         An evidence link that 404s is an attestation that proves nothing."
         OK=0; break; }
     done
-    [ "$OK" = "1" ] || { FAIL=$((FAIL + 1)); continue; }
+    [ "$OK" = "1" ] || continue
   fi
 
   # --- 5. VERIFY -----------------------------------------------------------
@@ -224,17 +248,25 @@ for CONTROL in $CONTROLS; do
   if env ${VAULT_ENV[@]+"${VAULT_ENV[@]}"} \
        EXPECT_ISSUER="$ISSUER" EXPECT_IDENTITY="$IDENTITY" \
        "$VERIFY" "$DEST/$NAME" 2>&1 | sed 's/^/  /'; then
-    PASS=$((PASS + 1))
+    ok "$CONTROL — chain verified end to end"
   else
-    FAIL=$((FAIL + 1))
+    bad "$CONTROL — verification failed, see above"
   fi
 done
 
 echo
 rule
 if [ "$FAIL" -eq 0 ]; then
-  bold "TRAVERSAL COMPLETE — $PASS/$PASS control(s) walked from profile to verified evidence"
+  title "TRAVERSAL COMPLETE — $PASS/$PASS control(s) walked from profile to verified evidence"
   exit 0
 fi
-bold "TRAVERSAL INCOMPLETE — $PASS passed, $FAIL failed"
+title "TRAVERSAL INCOMPLETE — $PASS passed, $FAIL failed"
+# Repeat what failed, the way verify-pipeline.sh does. On a four-control walk the
+# failures scroll off before the summary lands, and a bare count tells a reader
+# how bad it is without telling them what to go and look at.
+#
+# ${arr[@]+"${arr[@]}"} — expanding an empty array under `set -u` aborts on bash
+# before 4.4. Unreachable here (FAIL > 0 implies FAILED is populated), but the
+# guard costs nothing and the next edit might move this block.
+for c in ${FAILED[@]+"${FAILED[@]}"}; do echo "  - $c"; done
 exit 1

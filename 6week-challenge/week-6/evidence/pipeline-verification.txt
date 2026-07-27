@@ -1,5 +1,5 @@
 # verify-pipeline.sh — every eligibility check for the six-week build.
-# Captured 2026-07-27T03:33:30Z. Reproduce: ./verify-pipeline.sh
+# Captured 2026-07-27T04:29:33Z. Reproduce: ./verify-pipeline.sh
 
 
 1. terraform validate — the infrastructure parses and type-checks

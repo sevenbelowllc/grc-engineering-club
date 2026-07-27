@@ -45,23 +45,47 @@ if [ "${1:-}" = "--transcript" ]; then
   exit "${PIPESTATUS[0]}"
 fi
 
+# --- reporting vocabulary ---------------------------------------------------
+# Byte-identical to the copy in traverse.sh. Each script carries the subset it
+# uses; every definition below is identical wherever it appears. Change one,
+# change the other.
+#
+#   c_bold c_green c_red c_grey   inline colourisers, no trailing newline
+#   rule                          a horizontal rule
+#   title  section                a bold line; a bold line preceded by a blank
+#   ok  bad  skip                 one result line AND the counter that goes with it
+#   need                          is this tool on PATH
+#
+# The counters live inside ok/bad/skip deliberately. A reporting helper that
+# prints a failure without recording it is how a closing summary ends up
+# disagreeing with the body of output above it — and the summary is the part
+# people actually read.
+#
+# The closing message is NOT shared. Both scripts build it from `rule`, `c_bold`
+# and these counters, but each says its own thing, because "TRAVERSAL COMPLETE —
+# 4/4 control(s) walked" is quoted verbatim in the README, the submission and
+# the committed evidence transcripts. Unifying the words would churn documented
+# output for no gain; unifying the vocabulary that produces them is the point.
 PASS=0; FAIL=0; SKIP=0
-FAILED_CHECKS=()
+FAILED=()
 
-green() { printf '\033[32m%s\033[0m' "$*"; }
-red()   { printf '\033[31m%s\033[0m' "$*"; }
-grey()  { printf '\033[90m%s\033[0m' "$*"; }
+c_bold() { printf '\033[1m%s\033[0m' "$*"; }
+c_green() { printf '\033[32m%s\033[0m' "$*"; }
+c_red() { printf '\033[31m%s\033[0m' "$*"; }
+c_grey() { printf '\033[90m%s\033[0m' "$*"; }
 
-ok()   { printf '  [%s] %s\n' "$(green PASS)" "$1"; PASS=$((PASS+1)); }
-bad()  { printf '  [%s] %s\n' "$(red FAIL)" "$1"; FAIL=$((FAIL+1)); FAILED_CHECKS+=("$1"); }
-skip() { printf '  [%s] %s\n    %s\n' "$(grey SKIP)" "$1" "$(grey "$2")"; SKIP=$((SKIP+1)); }
+rule() { printf '%s\n' "------------------------------------------------------------------------"; }
+title() { printf '%s\n' "$(c_bold "$*")"; }
+section() { printf '\n%s\n' "$(c_bold "$*")"; }
 
-header() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+ok() { printf '  [%s] %s\n' "$(c_green PASS)" "$1"; PASS=$((PASS + 1)); }
+bad() { printf '  [%s] %s\n' "$(c_red FAIL)" "$1"; FAIL=$((FAIL + 1)); FAILED+=("$1"); }
+skip() { printf '  [%s] %s\n' "$(c_grey SKIP)" "$1"; [ "$#" -gt 1 ] && printf '    %s\n' "$(c_grey "$2")"; SKIP=$((SKIP + 1)); }
 
 need() { command -v "$1" >/dev/null 2>&1; }
 
 # ---------------------------------------------------------------------------
-header "1. terraform validate — the infrastructure parses and type-checks"
+section "1. terraform validate — the infrastructure parses and type-checks"
 # ---------------------------------------------------------------------------
 if ! need terraform; then
   skip "terraform validate" "terraform is not installed"
@@ -78,7 +102,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-header "2. conftest — the policy gate denies what it is supposed to deny"
+section "2. conftest — the policy gate denies what it is supposed to deny"
 # ---------------------------------------------------------------------------
 # Both directions. A gate that only ever passes has not been shown to be a gate:
 # the negative case is what distinguishes a control from a decoration.
@@ -98,7 +122,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-header "3. trestle validate — the OSCAL documents are schema-valid"
+section "3. trestle validate — the OSCAL documents are schema-valid"
 # ---------------------------------------------------------------------------
 if ! need trestle; then
   skip "trestle validate" "trestle is not installed (pip install compliance-trestle)"
@@ -112,7 +136,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-header "4. cosign verify — the evidence is authentic and intact"
+section "4. cosign verify — the evidence is authentic and intact"
 # ---------------------------------------------------------------------------
 if ! need cosign; then
   skip "cosign verify" "cosign is not installed"
@@ -137,7 +161,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-header "5. vault preservation — the evidence cannot be deleted"
+section "5. vault preservation — the evidence cannot be deleted"
 # ---------------------------------------------------------------------------
 VAULT_BUCKET="${EVIDENCE_VAULT_BUCKET:-grc-challenge-evidence-vault-f11fcaca}"
 if ! need aws; then
@@ -159,7 +183,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-header "6. traversal — profile to verified evidence, following only the documents"
+section "6. traversal — profile to verified evidence, following only the documents"
 # ---------------------------------------------------------------------------
 if [ ! -x "$HERE/traverse.sh" ]; then
   skip "traversal" "traverse.sh not found or not executable"
@@ -175,19 +199,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-printf '\n%s\n' "------------------------------------------------------------------------"
+echo
+rule
 printf '%d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"
+echo
 
 if [ "$FAIL" -gt 0 ]; then
-  printf '\n\033[1m%s\033[0m\n' "PIPELINE FAIL"
-  for c in "${FAILED_CHECKS[@]}"; do echo "  - $c"; done
+  title "PIPELINE FAIL"
+  # ${arr[@]+"${arr[@]}"} — see traverse.sh: expanding an empty array under
+  # `set -u` aborts on bash before 4.4. FAILED is empty on the happy path.
+  for c in ${FAILED[@]+"${FAILED[@]}"}; do echo "  - $c"; done
   exit 1
 fi
 
 if [ "$SKIP" -gt 0 ]; then
-  printf '\n\033[1m%s\033[0m\n' "PIPELINE PASS (with $SKIP check(s) skipped — see above)"
+  title "PIPELINE PASS (with $SKIP check(s) skipped — see above)"
   printf '%s\n' "A skipped check is a check nobody has done. Install the missing tools for a complete run."
   exit 0
 fi
 
-printf '\n\033[1m%s\033[0m\n' "PIPELINE PASS — every check ran and every check passed"
+title "PIPELINE PASS — every check ran and every check passed"
