@@ -96,8 +96,23 @@ jobs:
             --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
             "${WEEK3_DIR}/evidence.tar.gz"
 
+      # The vault upload below calls the AWS CLI, which needs credentials this job
+      # did not previously have — the only authenticated job was grc-gate-oidc, so
+      # the upload step could never have succeeded. Assume the same read-plus-vault
+      # -write role via OIDC (no stored keys); `id-token: write` is already granted
+      # at the job level for cosign.
+      #
+      # Gated on BOTH variables: with either unset the whole vault path stays
+      # dormant and skipped rather than failing.
+      - name: Configure AWS credentials for the vault upload (OIDC, no stored keys)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
       - name: Upload signed bundle to the immutable vault (dormant)
-        if: always() && vars.EVIDENCE_VAULT_BUCKET != ''
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
         env:
           VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
           RUN_ID: ${{ github.run_id }}
