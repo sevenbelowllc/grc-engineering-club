@@ -21,6 +21,11 @@
 #   ./traverse.sh                 # every control in the profile
 #   ./traverse.sh sc-28           # one control
 #   ./traverse.sh --offline       # verify the local copies instead of fetching
+# `set -uo pipefail`, deliberately without `-e`. Every other script here uses
+# `-euo`; this one must not, because a failing control is a RESULT it has to
+# report, not an error that should abort the walk. With `-e` the first broken
+# link would kill the script before the remaining controls were tried, and a
+# partial traversal would look like a complete one.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

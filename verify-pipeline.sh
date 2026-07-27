@@ -18,6 +18,10 @@
 # Usage:
 #   ./verify-pipeline.sh              # human output
 #   ./verify-pipeline.sh --transcript # also write evidence/pipeline-verification.txt
+# `set -uo pipefail`, deliberately without `-e`. Every other script here uses
+# `-euo`; this one must not, because a failing check is the thing it exists to
+# report. With `-e` the first FAIL would abort before the later checks ran, so
+# the output would show one failure and silently hide any others.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

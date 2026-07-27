@@ -6,11 +6,20 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 EV="$HERE/evidence"
 BUNDLE="$EV/week5-evidence.tar.gz"
 
-# GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so this
-# runs unmodified on a Linux CI runner or in a container, and fall back so it
-# still works on a developer's Mac. Both emit the identical "<hash>  <name>"
-# format, so a sidecar written by either is readable by `sha256sum -c` and by
-# `shasum -c` alike.
+# --- portability: canonical hashing helper ----------------------------------
+# Keep this block byte-identical in every script that hashes:
+#   6week-challenge/week-4/verify-evidence.sh
+#   6week-challenge/week-5/sign-evidence.sh    (here)
+#   6week-challenge/week-6/sign-oscal.sh
+# It is duplicated rather than sourced from a shared lib because each week
+# directory has to stand alone — somebody copying week 4 out of this repo should
+# get a working verifier, not a dangling `source ../../lib/hash.sh`.
+#
+# GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so
+# this runs unmodified on a Linux CI runner or in a container, fall back so it
+# still works on a developer's Mac, and fail loudly rather than skip the check
+# if neither exists. Both emit the identical "<hash>  <name>" format, so either
+# tool can verify the other's sidecar.
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1"
