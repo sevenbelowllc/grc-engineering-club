@@ -34,21 +34,36 @@ PROFILE="$OSCAL/profiles/grc-pipeline-controls/profile.json"
 COMPONENT="$OSCAL/component-definitions/grc-pipeline/component-definition.json"
 VERIFY="$HERE/6week-challenge/week-4/verify-evidence.sh"
 
+# --- shared helpers ---------------------------------------------------------
+# fail() is byte-identical to the copy in week-4/verify-evidence.sh,
+# week-5/sign-evidence.sh and week-6/sign-oscal.sh. Change one, change all.
+#
+# usage() is local to this script and exists to keep the conventional exit-code
+# split: 2 means "you invoked it wrong or a tool is missing", 1 means "the
+# traversal ran and something did not verify". Collapsing them into one code
+# would make a missing jq indistinguishable from a broken chain of custody,
+# which is precisely the distinction anybody scripting around this needs.
+# Note the single space after fail() — do not pad it to line up with usage()
+# below. Byte-identity with the other three copies is the property being kept,
+# and cosmetic alignment is exactly the kind of edit that silently breaks it.
+fail() { echo "FAIL: $*" >&2; exit 1; }
+usage() { echo "traverse.sh: $*" >&2; exit 2; }
+
 OFFLINE=0
 WANT=""
 for arg in "$@"; do
   case "$arg" in
     --offline) OFFLINE=1 ;;
     -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
-    -*) echo "unknown option: $arg" >&2; exit 2 ;;
+    -*) usage "unknown option: $arg" ;;
     *) WANT="$arg" ;;
   esac
 done
 
 for f in "$PROFILE" "$COMPONENT" "$VERIFY"; do
-  [ -f "$f" ] || { echo "missing: $f" >&2; exit 2; }
+  [ -f "$f" ] || usage "missing: $f"
 done
-command -v jq >/dev/null || { echo "traverse.sh needs jq" >&2; exit 2; }
+command -v jq >/dev/null || usage "needs jq on PATH"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -77,19 +92,23 @@ echo "  in scope: $(echo "$CONTROLS" | tr '\n' ' ')"
 # prints "TRAVERSAL COMPLETE — 0/0" with exit 0 — a green result that verified
 # nothing, which is the exact failure this whole pipeline exists to prevent.
 if [ -z "${CONTROLS//[[:space:]]/}" ]; then
-  echo >&2
-  echo "BROKEN GRAPH: the profile selects no controls." >&2
-  echo "Either include-controls is empty, or jq could not read it — check that" >&2
-  echo "\`jq -r '.profile.imports[] | .[\"include-controls\"][]?' $PROFILE\` returns rows." >&2
-  exit 1
+  cat >&2 <<EOF
+
+Either include-controls is empty, or jq could not read it — check that
+  jq -r '.profile.imports[] | .["include-controls"][]?' $PROFILE
+returns rows.
+EOF
+  fail "BROKEN GRAPH: the profile selects no controls"
 fi
 
 if [ -n "$WANT" ]; then
   echo "$CONTROLS" | grep -qx "$WANT" || {
-    echo >&2
-    echo "control '$WANT' is not in the profile. The profile is the scope statement:" >&2
-    echo "a control it does not select is a control this pipeline does not claim." >&2
-    exit 2
+    cat >&2 <<EOF
+
+The profile is the scope statement: a control it does not select is a control
+this pipeline does not claim. In scope: $(echo "$CONTROLS" | tr '\n' ' ')
+EOF
+    usage "control '$WANT' is not in the profile"
   }
   CONTROLS="$WANT"
 fi
