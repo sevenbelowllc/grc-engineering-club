@@ -135,5 +135,5 @@ Every pull request produces machine-readable evidence of its own control state.
 
 Free, except the vault. `terraform destroy` on
 [`terraform/`](terraform/) fails until the last uploaded object's Object Lock
-retention expires — 24 hours at the default. Pennies in the meantime; the
+retention expires — 30 days at the default. Pennies in the meantime; the
 constraint is timing, not money.

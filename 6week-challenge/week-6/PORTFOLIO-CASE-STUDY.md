@@ -209,8 +209,8 @@ Seven limits, written down deliberately:
 
 The short version — plan-time is not runtime; drift made outside Terraform is
 mostly invisible; the chain proves nobody tampered with the evidence but not
-that the evidence is *correct*; and one day of Object Lock is a cost demo, not a
-retention policy.
+that the evidence is *correct*; and thirty days of Object Lock is a demo value,
+not a retention policy.
 
 An assessor's first question about any automated control is "what does it miss?"
 The answer is the same whoever produces it. The only variable is whether it came

@@ -29,15 +29,23 @@ variable "github_repo" {
 # days, which also means the bucket cannot be destroyed until the last object's
 # retention expires.
 #
-# 1 day is a cost/demo value, NOT a compliant retention period — real SEC 17a-4
+# 30 days is a demo value, NOT a compliant retention period — real SEC 17a-4
 # retention is measured in years. Object Lock is the *control*; meeting a
 # regulation additionally requires an appropriate period, a designated third
 # party, and the surrounding audit process. See
 # ../../week-4/worm-vs-iam-preservation-deep-dive.md.
+#
+# It was 1 day until the CI verifier arrived. Running ./verify-pipeline.sh checks
+# that the vault's retention is still in the future — the date arithmetic is in
+# week-4/verify-evidence.sh, reached through traverse.sh — and at one day a
+# lapsed lock turned that check red locally within 24 hours of the last upload.
+# On a per-PR check that would mean a red build every day on pull requests that
+# had changed nothing. 30 days is long enough that the check means something
+# between runs and short enough to stay a demo.
 variable "vault_retention_days" {
   type        = number
   description = "Object Lock COMPLIANCE retention in days. Objects are undeletable for this long."
-  default     = 1
+  default     = 30
 
   validation {
     condition     = var.vault_retention_days >= 1

@@ -211,4 +211,7 @@ Both, or the claim is weaker than it looks.
       `CHAIN INTACT` against `accounts.google.com` / `dkramer@sevenbelow.com`
 - [x] Vault upload proven in a CI run — run `30414290874` signed and uploaded
       `runs/30414290874/`, COMPLIANCE-locked; admin `delete-object` refused
+- [x] `verify-pipeline` runs on every pull request and is a required status
+      check — the twelve-check verdict now blocks the merge instead of waiting
+      for somebody to remember to run it
 - [ ] Case study published to the portfolio site
