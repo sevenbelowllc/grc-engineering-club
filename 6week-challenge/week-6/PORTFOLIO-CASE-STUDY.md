@@ -17,7 +17,9 @@ cd grc-engineering-club && ./verify-pipeline.sh
 ```
 
 Latest run: **12 checks, 12 passed, 0 skipped**
-([transcript](evidence/pipeline-verification.txt)).
+([transcript](evidence/pipeline-verification.txt)) — the two vault checks need
+AWS credentials for the evidence account and report `skipped` without them,
+which is the honest verdict rather than a pass.
 
 ---
 
