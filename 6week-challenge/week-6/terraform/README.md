@@ -86,18 +86,18 @@ is the whole point of this module.
 
 ## Teardown — read this before applying
 
-`vault_retention_days` defaults to **1**, and COMPLIANCE mode means exactly what
+`vault_retention_days` defaults to **30**, and COMPLIANCE mode means exactly what
 it says: an uploaded object cannot be deleted by anyone, including the account
 root, until its retention expires.
 
 **Consequence: `terraform destroy` fails while any object is still locked.** Wait
-out the retention window (24h from the last upload at the default), empty the
+out the retention window (30 days from the last upload at the default), empty the
 bucket, then destroy. Cost in the meantime is pennies — the constraint is timing,
 not money.
 
 The IAM role and OIDC provider destroy cleanly at any time.
 
-> **1 day is a cost/demo value, not a compliant retention period.** Real SEC
+> **30 days is a demo value, not a compliant retention period.** Real SEC
 > 17a-4 retention is measured in years. Object Lock is the *control*; satisfying a
 > regulation also requires an appropriate period, a designated third party, and
 > the surrounding audit process. See

@@ -35,10 +35,13 @@ variable "github_repo" {
 # party, and the surrounding audit process. See
 # ../../week-4/worm-vs-iam-preservation-deep-dive.md.
 #
-# It was 1 day until the CI verifier arrived. verify-pipeline.sh checks that the
-# vault's retention is still in the future, and at one day that check went red
-# every day on pull requests that had changed nothing. 30 days is long enough
-# that the check means something between runs and short enough to stay a demo.
+# It was 1 day until the CI verifier arrived. Running ./verify-pipeline.sh checks
+# that the vault's retention is still in the future — the date arithmetic is in
+# week-4/verify-evidence.sh, reached through traverse.sh — and at one day a
+# lapsed lock turned that check red locally within 24 hours of the last upload.
+# On a per-PR check that would mean a red build every day on pull requests that
+# had changed nothing. 30 days is long enough that the check means something
+# between runs and short enough to stay a demo.
 variable "vault_retention_days" {
   type        = number
   description = "Object Lock COMPLIANCE retention in days. Objects are undeletable for this long."

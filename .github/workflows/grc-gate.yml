@@ -401,8 +401,9 @@ jobs:
   # `0 skipped` assertion below is what keeps it meaning something when a tool
   # silently stops installing.
   #
-  # The role is read-only. Writes to the vault come from a bucket policy that
-  # grants PutObject alone, so this job cannot modify the evidence it verifies.
+  # The role's identity policy is read-only. Writes to the vault come from a
+  # bucket policy that grants PutObject alone, so this job cannot modify the
+  # evidence it verifies.
   # ---------------------------------------------------------------------------
   verify-pipeline:
     runs-on: ubuntu-latest

@@ -103,7 +103,7 @@ audited process around both. Object Lock is one of those three things.
 
 The number is set by what the CI verifier needs, not by a regulation: the
 pipeline checks on every pull request that retention is still in the future,
-and a one-day lock made that check red for calendar reasons. It was one day
+and a one-day lock would make that check red for calendar reasons. It was one day
 while the demonstration had to be torn down inside the challenge window.
 Changing the number is a one-line edit; satisfying the regulation is not.
 Saying otherwise would be exactly the kind of claim this whole build exists to
