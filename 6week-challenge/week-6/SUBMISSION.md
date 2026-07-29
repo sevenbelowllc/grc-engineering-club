@@ -207,8 +207,8 @@ Both, or the claim is weaker than it looks.
       `trestle validate`, `cosign verify`, vault preservation — 12/12
 - [x] What the pipeline does **not** prove is written down:
       [`ASSURANCE-BOUNDARY.md`](ASSURANCE-BOUNDARY.md)
-- [ ] OSCAL documents signed — [`sign-oscal.sh`](sign-oscal.sh) is written and
-      validated; cosign keyless needs an interactive browser sign-in
-- [ ] Vault upload proven in a CI run — needs the `AWS_GATE_ROLE_ARN` and
-      `EVIDENCE_VAULT_BUCKET` repository variables set
+- [x] OSCAL documents signed — [`sign-oscal.sh`](sign-oscal.sh), verified
+      `CHAIN INTACT` against `accounts.google.com` / `dkramer@sevenbelow.com`
+- [ ] Vault upload proven in a CI run — the `AWS_GATE_ROLE_ARN` and
+      `EVIDENCE_VAULT_BUCKET` variables are set; awaiting the next gate run
 - [ ] Case study published to the portfolio site
