@@ -87,24 +87,27 @@ record of an expected object that never arrived.
 **What would close it:** an expected-artifact manifest checked against the vault
 on a schedule, so a missing deposit is as loud as a modified one.
 
-## 4. One day of Object Lock is a cost demo, not a retention policy
+## 4. Thirty days of Object Lock is a demo value, not a retention policy
 
-The vault is configured with `vault_retention_days = 1`. COMPLIANCE mode means
-that day is real — the objects genuinely cannot be deleted by anyone, including
+The vault is configured with `vault_retention_days = 30`. COMPLIANCE mode means
+those days are real — the objects genuinely cannot be deleted by anyone, including
 the account root, and [the proof is
 committed](evidence/vault-preservation-proof.txt): a hard delete attempted with
 admin credentials returned *"Access Denied because object protected by object
 lock."*
 
-But real records-retention regulation is measured in years, not hours. SEC
+But real records-retention regulation is measured in years, not weeks. SEC
 17a-4(f), FINRA 4511(c) and CFTC 1.31(c) each require a retention *period*, a
 *designated third party* who can produce records if the firm cannot, and an
 audited process around both. Object Lock is one of those three things.
 
-One day was chosen so the demonstration could be torn down inside the
-challenge window. Changing the number is a one-line edit; satisfying the
-regulation is not. Saying otherwise would be exactly the kind of claim this
-whole build exists to make unnecessary.
+The number is set by what the CI verifier needs, not by a regulation: the
+pipeline checks on every pull request that retention is still in the future,
+and a one-day lock made that check red for calendar reasons. It was one day
+while the demonstration had to be torn down inside the challenge window.
+Changing the number is a one-line edit; satisfying the regulation is not.
+Saying otherwise would be exactly the kind of claim this whole build exists to
+make unnecessary.
 
 See [week-4's deep dive](../week-4/worm-vs-iam-preservation-deep-dive.md) for
 why a deny-delete IAM policy is not a substitute.
