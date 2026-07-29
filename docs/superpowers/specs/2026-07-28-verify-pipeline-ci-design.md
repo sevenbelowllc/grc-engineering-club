@@ -163,6 +163,17 @@ has not happened yet.
   than this change needs.
 - A scheduled run on `main`. Worth having, but the PR path is where a blocked
   merge has value; a schedule can be added later without touching this design.
+- **A second container leg for old jq.** `ubuntu-latest` currently ships jq 1.7,
+  the same version macOS ships, so this job does not cover the jq 1.6 case —
+  which is the exact case commit `54c1050` caught, where `traverse.sh` walked
+  zero controls and reported success. A `debian:12` matrix leg would restore
+  that coverage and reproduce the environment
+  `evidence/pipeline-verification-linux.txt` describes. Deliberately not built:
+  the known regression is fixed and a fresh jq-1.6-only bug is unlikely. Stated
+  here so the gap is recorded rather than assumed away. Amazon Linux is not an
+  option worth pursuing — GitHub-hosted runners do not offer it, nothing in this
+  repo runs on EC2, and self-hosted runners on a public repository let fork PRs
+  execute code on infrastructure you own.
 - Unit tests for `oscal-from-conftest.py`, still proven by a committed
   transcript rather than a test. Unrelated to this change.
 
