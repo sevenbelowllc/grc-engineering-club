@@ -209,6 +209,6 @@ Both, or the claim is weaker than it looks.
       [`ASSURANCE-BOUNDARY.md`](ASSURANCE-BOUNDARY.md)
 - [x] OSCAL documents signed — [`sign-oscal.sh`](sign-oscal.sh), verified
       `CHAIN INTACT` against `accounts.google.com` / `dkramer@sevenbelow.com`
-- [ ] Vault upload proven in a CI run — the `AWS_GATE_ROLE_ARN` and
-      `EVIDENCE_VAULT_BUCKET` variables are set; awaiting the next gate run
+- [x] Vault upload proven in a CI run — run `30414290874` signed and uploaded
+      `runs/30414290874/`, COMPLIANCE-locked; admin `delete-object` refused
 - [ ] Case study published to the portfolio site
