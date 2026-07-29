@@ -1,0 +1,245 @@
+{
+  "assessment-results": {
+    "uuid": "1028a3f6-20c8-410d-8e80-3688b345b0b6",
+    "metadata": {
+      "title": "GRC Engineering Pipeline \u2014 automated control assessment",
+      "last-modified": "2026-07-22T01:16:40+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "props": [
+        {
+          "name": "generator",
+          "ns": "https://sevenbelow.com/ns/oscal",
+          "value": "oscal-from-conftest.py"
+        },
+        {
+          "name": "assessment-method",
+          "ns": "https://sevenbelow.com/ns/oscal",
+          "value": "automated-policy-evaluation"
+        }
+      ],
+      "remarks": "Generated from conftest output by 6week-challenge/week-6/oscal-from-conftest.py. Do not hand-edit: regenerate from the verdicts. The control mapping is read from the component definition at conversion time, so this document cannot claim a control the component does not implement."
+    },
+    "import-ap": {
+      "href": "../../assessment-plans/grc-pipeline-assessment/assessment-plan.json"
+    },
+    "results": [
+      {
+        "uuid": "d2748d3d-72b9-4d25-9ac5-a239e3d18044",
+        "title": "Automated policy assessment of the Terraform plan",
+        "description": "Conftest evaluated the repository's Rego policies against a Terraform plan and returned a verdict per policy package. This document is a mechanical translation of those verdicts \u2014 one observation per package, one finding per control \u2014 with no human judgement applied between the gate's output and the assessor's input.",
+        "start": "2026-07-22T01:16:40+00:00",
+        "end": "2026-07-22T01:16:40+00:00",
+        "reviewed-controls": {
+          "control-selections": [
+            {
+              "description": "Controls assessed by automated policy evaluation against the Terraform plan, before apply.",
+              "include-controls": [
+                {
+                  "control-id": "ac-3"
+                },
+                {
+                  "control-id": "cm-6"
+                },
+                {
+                  "control-id": "sc-28"
+                }
+              ]
+            }
+          ],
+          "remarks": "This is a narrower set than the profile claims, and the difference is meaningful rather than an oversight. The profile scopes four controls; this assessment covers only those with a plan-time policy rule. AU-3 is assessed by a different method \u2014 examining captured runtime output \u2014 because trail delivery cannot be observed in a plan. Its evidence is linked from the component definition; it is simply not in this document, and a reader should not infer a verdict from its absence."
+        },
+        "observations": [
+          {
+            "uuid": "4e61a41e-3291-44ec-af1b-ae4d74f86e59",
+            "title": "Conftest verdict for compliance.sc28_aws (SC-28)",
+            "description": "Conftest evaluated policy package compliance.sc28_aws against 6week-challenge/week3/plan.json and returned no denials (1 rule(s) passed).",
+            "props": [
+              {
+                "name": "policy-package",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "compliance.sc28_aws"
+              },
+              {
+                "name": "assessed-file",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "6week-challenge/week3/plan.json"
+              },
+              {
+                "name": "successes",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "1"
+              },
+              {
+                "name": "failures",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "0"
+              }
+            ],
+            "methods": [
+              "TEST"
+            ],
+            "types": [
+              "control-objective"
+            ],
+            "collected": "2026-07-22T01:16:40+00:00",
+            "relevant-evidence": [
+              {
+                "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              },
+              {
+                "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              }
+            ]
+          },
+          {
+            "uuid": "3cf22cfd-9777-4ddc-b88e-4f99fecc163e",
+            "title": "Conftest verdict for compliance.ac3_aws (AC-3)",
+            "description": "Conftest evaluated policy package compliance.ac3_aws against 6week-challenge/week3/plan.json and returned no denials (1 rule(s) passed).",
+            "props": [
+              {
+                "name": "policy-package",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "compliance.ac3_aws"
+              },
+              {
+                "name": "assessed-file",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "6week-challenge/week3/plan.json"
+              },
+              {
+                "name": "successes",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "1"
+              },
+              {
+                "name": "failures",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "0"
+              }
+            ],
+            "methods": [
+              "TEST"
+            ],
+            "types": [
+              "control-objective"
+            ],
+            "collected": "2026-07-22T01:16:40+00:00",
+            "relevant-evidence": [
+              {
+                "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              },
+              {
+                "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              }
+            ]
+          },
+          {
+            "uuid": "12a52097-fbae-4d04-9566-d501462a61f4",
+            "title": "Conftest verdict for compliance.cm6_aws (CM-6)",
+            "description": "Conftest evaluated policy package compliance.cm6_aws against 6week-challenge/week3/plan.json and returned no denials (1 rule(s) passed).",
+            "props": [
+              {
+                "name": "policy-package",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "compliance.cm6_aws"
+              },
+              {
+                "name": "assessed-file",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "6week-challenge/week3/plan.json"
+              },
+              {
+                "name": "successes",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "1"
+              },
+              {
+                "name": "failures",
+                "ns": "https://sevenbelow.com/ns/oscal",
+                "value": "0"
+              }
+            ],
+            "methods": [
+              "TEST"
+            ],
+            "types": [
+              "control-objective"
+            ],
+            "collected": "2026-07-22T01:16:40+00:00",
+            "relevant-evidence": [
+              {
+                "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              },
+              {
+                "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                "description": "Signed evidence bundle containing the Terraform plan this verdict was computed from and the raw conftest output it was derived from. Verify with 6week-challenge/week-4/verify-evidence.sh."
+              }
+            ]
+          }
+        ],
+        "findings": [
+          {
+            "uuid": "372d26a8-6d00-4dee-8310-fb146bcdcb91",
+            "title": "SC-28 \u2014 satisfied",
+            "description": "SC-28 is satisfied. The policy rule that gates it (compliance.sc28_aws) returned no denials against the assessed Terraform plan, and that rule runs as a required status check on every pull request, so the finding holds for the merged state of the repository rather than for one manual run.",
+            "target": {
+              "type": "objective-id",
+              "target-id": "sc-28_obj",
+              "status": {
+                "state": "satisfied"
+              }
+            },
+            "implementation-statement-uuid": "7c3478e7-5924-45fe-b643-2b6d1ba7a750",
+            "related-observations": [
+              {
+                "observation-uuid": "4e61a41e-3291-44ec-af1b-ae4d74f86e59"
+              }
+            ]
+          },
+          {
+            "uuid": "f354e02c-03ec-4ba5-83b7-8032945ec323",
+            "title": "AC-3 \u2014 satisfied",
+            "description": "AC-3 is satisfied. The policy rule that gates it (compliance.ac3_aws) returned no denials against the assessed Terraform plan, and that rule runs as a required status check on every pull request, so the finding holds for the merged state of the repository rather than for one manual run.",
+            "target": {
+              "type": "objective-id",
+              "target-id": "ac-3_obj",
+              "status": {
+                "state": "satisfied"
+              }
+            },
+            "implementation-statement-uuid": "df8e512e-d8dc-4006-b39f-fc4d3c8c0770",
+            "related-observations": [
+              {
+                "observation-uuid": "3cf22cfd-9777-4ddc-b88e-4f99fecc163e"
+              }
+            ]
+          },
+          {
+            "uuid": "0b2f98a7-0840-4f11-9696-dca1020450f8",
+            "title": "CM-6 \u2014 satisfied",
+            "description": "CM-6 is satisfied. The policy rule that gates it (compliance.cm6_aws) returned no denials against the assessed Terraform plan, and that rule runs as a required status check on every pull request, so the finding holds for the merged state of the repository rather than for one manual run.",
+            "target": {
+              "type": "objective-id",
+              "target-id": "cm-6_obj",
+              "status": {
+                "state": "satisfied"
+              }
+            },
+            "implementation-statement-uuid": "d1673fe4-4b6f-44be-aad3-ca85cc1cc69d",
+            "related-observations": [
+              {
+                "observation-uuid": "12a52097-fbae-4d04-9566-d501462a61f4"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

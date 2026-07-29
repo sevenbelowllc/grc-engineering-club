@@ -72,6 +72,73 @@ jobs:
             echo "gate=fail" >> "$GITHUB_OUTPUT"
           fi
 
+      # ---------------------------------------------------------------------
+      # OSCAL. The control mapping is part of the deliverable, so it is gated
+      # like everything else — a component definition that no longer validates
+      # is a control mapping no assessor can consume, and it should turn a build
+      # red rather than sit in the repo looking authoritative.
+      # ---------------------------------------------------------------------
+      - name: Set up Python for trestle
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install compliance-trestle
+        # Pinned for the same reason Conftest is: a moving version is not
+        # evidence you can reproduce.
+        run: pip install --quiet compliance-trestle==4.2.0
+
+      - name: Validate the committed OSCAL documents
+        id: oscal
+        working-directory: 6week-challenge/week-6/oscal
+        run: |
+          if trestle validate -a; then
+            echo "oscal=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "oscal=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Turn THIS run's verdicts into an OSCAL assessment-results document, so
+      # every pull request produces machine-readable evidence of its own control
+      # state instead of a JSON file only this repo knows how to read.
+      #
+      # Not committed back to the branch: the document describes one run. It goes
+      # into the signed bundle and the vault, which is where the record of a
+      # single run belongs. Committing it would put a mutable copy of an
+      # immutable fact in the working tree.
+      #
+      # Recorded rather than fatal, like the policy gate above: a mapping error
+      # is a real failure, but the evidence of the run still has to survive it.
+      - name: Convert the gate verdicts to OSCAL assessment-results
+        id: convert
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          OSCAL_DIR: 6week-challenge/week-6/oscal
+        run: |
+          set -uo pipefail
+          EV=(--evidence "$RUN_URL")
+          if [ -n "${VAULT_BUCKET:-}" ]; then
+            EV+=(--evidence "s3://${VAULT_BUCKET}/runs/${RUN_ID}/evidence.tar.gz")
+          fi
+          OUT="${OSCAL_DIR}/assessment-results/ci-run/assessment-results.json"
+          if python 6week-challenge/week-6/oscal-from-conftest.py \
+               --conftest "${WEEK3_DIR}/evidence/conftest-results.json" \
+               --component "${OSCAL_DIR}/component-definitions/grc-pipeline/component-definition.json" \
+               --plan-href "../../assessment-plans/grc-pipeline-assessment/assessment-plan.json" \
+               "${EV[@]}" \
+               --assessed-at "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+               --note "Generated in CI from workflow run ${RUN_ID} at commit ${SHA}." \
+               -o "$OUT" \
+             && ( cd "$OSCAL_DIR" && trestle validate -f assessment-results/ci-run/assessment-results.json ); then
+            cp "$OUT" "${WEEK3_DIR}/evidence/assessment-results.json"
+            echo "convert=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "convert=fail" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Cosign
         # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
         # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
@@ -84,20 +151,52 @@ jobs:
         run: |
           set -euo pipefail
           cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # stage the evaluated plan next to the verdict
-          # Sign exactly THIS run's gate output — the verdict and the plan it
-          # evaluated — not the whole shared evidence/ dir (which also holds
-          # prior weeks' static screenshots). Keeps the signed bundle small and
-          # matches the locked spec: conftest-results.json + plan.json.
+          # Sign exactly THIS run's gate output — the plan that was evaluated,
+          # the raw verdict, and the OSCAL assessment-results derived from it —
+          # not the whole shared evidence/ dir (which also holds prior weeks'
+          # static screenshots). Keeps the signed bundle small and self-contained.
+          #
+          # The assessment-results file is included only if the conversion
+          # succeeded. When it did not, the bundle is still produced and signed
+          # with what the run did prove: evidence that disappears on failure is
+          # not evidence.
+          FILES=(conftest-results.json plan.json)
+          if [ -f "${WEEK3_DIR}/evidence/assessment-results.json" ]; then
+            FILES+=(assessment-results.json)
+          fi
           tar -czf "${WEEK3_DIR}/evidence.tar.gz" \
-            -C "${WEEK3_DIR}/evidence" conftest-results.json plan.json
-          sha256sum "${WEEK3_DIR}/evidence.tar.gz" \
-            | awk '{print $1}' > "${WEEK3_DIR}/evidence.tar.gz.sha256"
+            -C "${WEEK3_DIR}/evidence" "${FILES[@]}"
+          # Write the sidecar in the standard "<hash>  <name>" form, from inside
+          # the bundle's directory so the recorded name is bare.
+          #
+          # It used to be `sha256sum … | awk '{print $1}'`, a bare hash. That is
+          # readable by verify-evidence.sh, which takes field 1, but NOT by
+          # `sha256sum -c` — so the one command anybody would reach for first
+          # failed on our own evidence. Running from the directory also keeps
+          # the workspace path (6week-challenge/week-3/…) out of published
+          # evidence; same defect week 5 had with an absolute path.
+          ( cd "${WEEK3_DIR}" && sha256sum evidence.tar.gz > evidence.tar.gz.sha256 )
           cosign sign-blob --yes \
             --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
             "${WEEK3_DIR}/evidence.tar.gz"
 
+      # The vault upload below calls the AWS CLI, which needs credentials this job
+      # did not previously have — the only authenticated job was grc-gate-oidc, so
+      # the upload step could never have succeeded. Assume the same read-plus-vault
+      # -write role via OIDC (no stored keys); `id-token: write` is already granted
+      # at the job level for cosign.
+      #
+      # Gated on BOTH variables: with either unset the whole vault path stays
+      # dormant and skipped rather than failing.
+      - name: Configure AWS credentials for the vault upload (OIDC, no stored keys)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
       - name: Upload signed bundle to the immutable vault (dormant)
-        if: always() && vars.EVIDENCE_VAULT_BUCKET != ''
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
         env:
           VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
           RUN_ID: ${{ github.run_id }}
@@ -130,6 +229,9 @@ jobs:
       - name: Comment gate verdict on PR
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          OSCAL: ${{ steps.oscal.outputs.oscal }}
+          CONVERT: ${{ steps.convert.outputs.convert }}
         with:
           script: |
             const fs = require('fs');
@@ -163,6 +265,13 @@ jobs:
               passed
                 ? '_Every control passed. This PR is mergeable._'
                 : '_A control failed. With branch protection on, this merge is blocked until it is fixed._',
+              '',
+              `OSCAL: documents ${process.env.OSCAL === 'pass' ? 'VALID' : '**INVALID**'} · `
+                + `assessment-results ${process.env.CONVERT === 'pass' ? 'generated and signed' : '**not generated**'}`,
+              '',
+              '<sub>The signed evidence bundle for this run contains the plan, the raw verdict, '
+                + 'and an OSCAL assessment-results document derived from it. Verify with '
+                + '`6week-challenge/week-4/verify-evidence.sh`.</sub>',
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -171,16 +280,34 @@ jobs:
               body,
             });
 
+      # Single source of truth for red/green. Every check above records its
+      # verdict and keeps going, so the evidence is always signed and vaulted
+      # before anything is allowed to fail the job.
       - name: Enforce gate verdict
         if: always()
         env:
           GATE: ${{ steps.gate.outputs.gate }}
+          OSCAL: ${{ steps.oscal.outputs.oscal }}
+          CONVERT: ${{ steps.convert.outputs.convert }}
         run: |
+          RED=0
           if [ "$GATE" != "pass" ]; then
-            echo "A control failed — gate is red (evidence was signed and uploaded first)."
+            echo "::error::A control failed the policy gate."
+            RED=1
+          fi
+          if [ "$OSCAL" != "pass" ]; then
+            echo "::error::The committed OSCAL documents did not validate. A control mapping an assessor cannot parse is not a control mapping."
+            RED=1
+          fi
+          if [ "$CONVERT" != "pass" ]; then
+            echo "::error::Could not convert this run's verdicts to OSCAL assessment-results. Usually this means the Rego packages and the component definition's policy-package props have drifted apart — see the step log for which direction."
+            RED=1
+          fi
+          if [ "$RED" = "1" ]; then
+            echo "Gate is red (evidence was signed and vaulted first)."
             exit 1
           fi
-          echo "All controls passed."
+          echo "All controls passed, OSCAL valid, assessment-results generated."
 
   # ---------------------------------------------------------------------------
   # STRETCH — keyless plan generation via GitHub OIDC.

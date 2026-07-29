@@ -13,19 +13,52 @@ SIGBUNDLE="${BUNDLE}.sig.bundle"
 EXPECT_ISSUER="${EXPECT_ISSUER:-https://token.actions.githubusercontent.com}"
 EXPECT_IDENTITY="${EXPECT_IDENTITY:-^https://github.com/sevenbelowllc/grc-engineering-club/\.github/workflows/grc-gate\.yml@refs/.*$}"
 
+# --- shared helpers ---------------------------------------------------------
+# Every function below is byte-identical wherever it appears. Where it appears:
+#
+#   fail                  week-4/verify-evidence.sh, week-5/sign-evidence.sh,
+#                         week-6/sign-oscal.sh
+#   sha256_file           week-4/verify-evidence.sh, week-5/sign-evidence.sh,
+#                         week-6/sign-oscal.sh
+#   write_sha256_sidecar  week-5/sign-evidence.sh, week-6/sign-oscal.sh
+#   read_sha256_sidecar   week-4/verify-evidence.sh
+#
+# They are duplicated rather than sourced from a shared lib because each week
+# directory has to stand alone — somebody copying week 4 out of this repo should
+# get a working verifier, not a dangling `source ../../lib/hash.sh`. The price of
+# that choice is drift, so the rule is blunt: change one, change all of them.
+
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# GNU coreutils ships `sha256sum`; macOS ships `shasum`. Prefer sha256sum so
+# this runs unmodified on a Linux CI runner or in a container, fall back so it
+# still works on a developer's Mac, and fail loudly rather than skip the check
+# if neither exists. Both emit the identical "<hash>  <name>" format, so either
+# tool can verify the other's sidecar.
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1"
+  else
+    fail "need sha256sum or shasum on PATH"
+  fi
+}
+
+# Read the hash back out of a sidecar. Field 1 only: a sidecar may carry a
+# trailing filename (the standard form that `sha256sum -c` reads) or be a bare
+# hash (what CI wrote before the format was fixed), and both have to work.
+read_sha256_sidecar() {
+  [ -f "$1" ] || fail "sidecar not found: $1"
+  awk '{print $1}' "$1"
+}
 
 # --- 1. INTEGRITY -----------------------------------------------------------
 # Recompute the bundle's SHA-256 and compare to the sidecar written at creation.
-[ -f "$BUNDLE" ]  || fail "bundle not found: $BUNDLE"
-[ -f "$SIDECAR" ] || fail "sidecar not found: $SIDECAR"
+[ -f "$BUNDLE" ] || fail "bundle not found: $BUNDLE"
 
-if command -v sha256sum >/dev/null 2>&1; then
-  ACTUAL="$(sha256sum "$BUNDLE" | awk '{print $1}')"
-else
-  ACTUAL="$(shasum -a 256 "$BUNDLE" | awk '{print $1}')"   # macOS
-fi
-EXPECTED="$(awk '{print $1}' "$SIDECAR")"
+ACTUAL="$(sha256_file "$BUNDLE" | awk '{print $1}')"
+EXPECTED="$(read_sha256_sidecar "$SIDECAR")"
 [ "$ACTUAL" = "$EXPECTED" ] || fail "integrity: sha256 mismatch (bundle was modified)"
 echo "integrity:    OK  ($ACTUAL)"
 

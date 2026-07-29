@@ -1,5 +1,15 @@
 # Stretch: keyless plan generation with GitHub OIDC
 
+> **Applied in week 6, from a different module.** The role described here is
+> live: an OIDC provider and a `grc-gate-oidc` role exist in the AWS account.
+> They were created by [`week-6/terraform/`](../../week-6/terraform/), not by
+> `iam-oidc.tf` in this directory, because the evidence vault's bucket policy
+> needs the role's ARN and a bucket policy cannot name a principal that does not
+> exist yet. Composing both into one module removes the hand-copied ARN.
+>
+> `iam-oidc.tf` here is week 3's deliverable and the source of that design.
+> Applying it now would create a second, conflicting role.
+
 The committed-`plan.json` path (the main deliverable) trusts a file a human
 generated and checked in. The production version removes that trust: **CI reads
 the cloud itself and generates the plan**, so the thing being gated is the real

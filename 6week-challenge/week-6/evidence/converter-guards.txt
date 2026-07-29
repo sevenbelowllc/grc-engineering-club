@@ -1,0 +1,49 @@
+# oscal-from-conftest.py — behaviour under the four cases that matter.
+# Captured 2026-07-27T02:37:09Z. Every command is reproducible from a clone.
+
+==============================================================================
+1. A DENYING GATE  ->  a not-satisfied finding, exit 0
+==============================================================================
+$ ./oscal-from-conftest.py --conftest evidence/conftest-results-broken-plan.json \
+      --component <component-definition> --plan-href <assessment-plan> \
+      --assessed-at 2026-07-26T19:45:00+00:00 -o tmp-guards/out.json
+wrote tmp-guards/out.json
+  3 finding(s): 2 satisfied, 1 not satisfied
+  NOT SATISFIED: SC-28 — not-satisfied
+exit=0
+
+==============================================================================
+2. AN UNMAPPED NAMESPACE  ->  refuses to write, exit 3
+==============================================================================
+# conftest tested compliance.ia5_secrets, which no implemented-requirement claims.
+# A control is being gated and the resulting assurance is going nowhere. Emitting
+# a valid document that omits it would hide the defect behind a clean artifact.
+$ ./oscal-from-conftest.py --conftest tmp-guards/rogue.json ... -o tmp-guards/rogue-out.json
+mapping error: conftest reported on package 'compliance.ia5_secrets', which no implemented-requirement in the component definition claims via a 'policy-package' prop.
+  Known packages: compliance.ac3_aws, compliance.cm6_aws, compliance.sc28_aws
+  Fix the component definition, not this script — the mapping is supposed to live there.
+exit=3
+(no output file written)
+
+==============================================================================
+3. A MISSING VERDICT  ->  refuses to write, exit 3
+==============================================================================
+# The component definition says compliance.sc28_aws gates SC-28, but conftest
+# returned no result for it. This is the one that would otherwise bite: a policy
+# file that silently stops loading yields one fewer entry and a zero exit code.
+$ ./oscal-from-conftest.py --conftest tmp-guards/short.json ... -o tmp-guards/short-out.json
+mapping error: the component definition claims these policy packages gate a control, but conftest reported no result for them:
+  compliance.sc28_aws  (control sc-28)
+An absent verdict is not a passing verdict. Either the gate did not run the policy, or the component definition is claiming a rule that no longer exists.
+exit=3
+(no output file written)
+
+==============================================================================
+4. DETERMINISM  ->  identical input, byte-identical output
+==============================================================================
+$ ./oscal-from-conftest.py <the exact args used to build the committed document> \
+      -o tmp-guards/rerun.json
+wrote tmp-guards/rerun.json
+  3 finding(s): 3 satisfied, 0 not satisfied
+$ diff tmp-guards/rerun.json oscal/assessment-results/grc-gate-run/assessment-results.json
+(no differences — the committed document is exactly what the verdicts produce)

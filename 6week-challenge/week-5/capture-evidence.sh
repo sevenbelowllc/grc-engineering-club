@@ -25,4 +25,9 @@ echo "3) AU-9 replication evidence (us-east-2 replica object listing)"
 REPLICA="$(terraform -chdir="$TFDIR" output -raw replica_bucket_name)"
 aws s3 ls "s3://$REPLICA" --recursive --region us-east-2 --profile "$PROFILE" \
   > "$EV/replica-listing.txt" || true
-echo "   replicated objects: $(wc -l < "$EV/replica-listing.txt")"
+# `wc -l` pads its output with leading spaces on BSD/macOS and not on GNU/Linux,
+# so the count is squeezed rather than interpolated raw — otherwise the same
+# script prints "replicated objects:       53" on one machine and "53" on the
+# other, and evidence that differs by platform invites a question you do not
+# want to be answering.
+echo "   replicated objects: $(wc -l < "$EV/replica-listing.txt" | tr -d '[:space:]')"

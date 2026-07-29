@@ -1,6 +1,20 @@
+# =============================================================================
+# UNMODIFIED STARTER SKELETON — NOT THE WORKING GATE. THIS FILE NEVER RUNS.
+#
+# GitHub Actions only discovers workflows under .github/workflows/ at the
+# repository ROOT. This copy is nested inside 6week-challenge/week-3/week-3/,
+# so it is inert by construction — it has never executed and cannot.
+#
+# The live, complete gate is at the repo root:
+#     .github/workflows/grc-gate.yml
+#
+# It is kept here only so the starting point stays visible beside the finished
+# result. The TODOs below are the challenge's, not outstanding work.
+# See ../../README.md for the full explanation.
+# =============================================================================
+
 # grc-gate: run the policy gate on every pull request.
-# This is a skeleton. The steps marked TODO are yours to write. The brief on
-# Patreon explains what each one does and why.
+# This is a skeleton. The steps marked TODO are yours to write.
 name: grc-gate
 
 on:

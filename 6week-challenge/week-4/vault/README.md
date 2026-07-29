@@ -1,8 +1,18 @@
 # Stretch: the immutable evidence vault
 
+> **Superseded by [`week-6/terraform/`](../../week-6/terraform/).** This module is
+> the original design and is kept as week 4's deliverable, but **do not apply it
+> here.** Its bucket policy has to name the CI role as a principal, and an S3
+> bucket policy cannot reference a principal that does not exist yet — so as a
+> standalone root module it could only ever apply after week 3's OIDC role had
+> been applied by hand and its ARN copied across. Week 6 composes the two into
+> one module where `aws_iam_role.grc_gate.arn` is an ordinary reference and
+> Terraform orders it for you. That is the module that is live.
+
 True preservation means the signed bundle cannot be overwritten or deleted —
-even by you — until its retention window expires. This is a **dormant** stretch:
-nothing runs in CI until you set the `EVIDENCE_VAULT_BUCKET` repo variable.
+even by you — until its retention window expires. This shipped as a **dormant**
+stretch: nothing ran in CI until the `EVIDENCE_VAULT_BUCKET` repo variable was
+set.
 
 ## Apply (pennies, tear down same day)
 
