@@ -438,7 +438,12 @@ jobs:
         run: pip install --quiet compliance-trestle==4.2.0
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4
+        # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
+        # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
+        # bundle instead, which the older @v3 installer cannot fetch (404).
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
 
       # Read-only. ReadOnlyAccess covers s3:GetObjectRetention, which is all the
       # vault checks need.
