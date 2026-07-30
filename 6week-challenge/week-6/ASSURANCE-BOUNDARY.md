@@ -177,6 +177,45 @@ preservation by spending separation of duties, which is the wrong direction.
 signs and deposits the transcript after the verifying job finishes, so the
 identity producing the record is not the identity auditing the vault.
 
+## 9. The timeliness leg rents infrastructure it does not operate
+
+Keyless signing needs two hosted services: Fulcio issues the ten-minute
+certificate, and Rekor records the signature. Both are the **Sigstore public
+good instance**, operated by the OpenSSF with volunteer on-call engineers from
+member companies, targeting a **99.5% availability SLO**. That is an objective,
+not an agreement — roughly three and a half hours of permitted monthly downtime,
+no contractual remedy, and no support relationship, because nothing is being
+paid for.
+
+The consequence is concrete in both directions. At signing time, if Fulcio or
+Rekor is unavailable the gate's signing step fails and the required check fails
+with it, so this pipeline's availability is bounded by a service the project
+neither operates nor pays for. At verification time, the ten-minute certificate
+is long expired; only Rekor's countersignature makes it verifiable at all. If
+the public instance were retired, existing bundles would lose the leg that
+currently rescues them.
+
+The apparent redundancy is not redundancy. Each bundle carries a Rekor entry
+*and* an RFC 3161 timestamp token, which reads as two independent sources of
+time. Decoding the token shows the issuer is `sigstore.dev`'s
+`sigstore-tsa-selfsigned` authority, stamped in the same second as the log
+entry. Two mechanisms, one operator, one trust root, one outage domain. Counting
+them as two would be exactly the kind of double-counting section 3 exists to
+prevent.
+
+There is a second-order effect worth stating plainly rather than discovering
+later: a transparency log is public by design, so every signature here
+permanently publishes the repository, the workflow path, the ref, and the
+timestamp. That is correct and intended for a public repository built to be
+verified by strangers. It is a real disclosure decision before the same pattern
+is applied to private work.
+
+**What would close it:** a self-hosted Sigstore deployment, or a countersignature
+from a commercially operated timestamp authority under a contract, so the
+timeliness claim survives one operator disappearing. Both cost money, which is
+the honest trade being made here — the four legs are free precisely because one
+of them is somebody else's donated infrastructure.
+
 ---
 
 ## Why write this down
