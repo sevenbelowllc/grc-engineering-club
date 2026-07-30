@@ -35,7 +35,7 @@ Full writeup: **[SUBMISSION.md](SUBMISSION.md)**.
 | [`rebuild-oscal.sh`](rebuild-oscal.sh) | Regenerates every document in the one order that keeps the graph intact. |
 | [`sign-oscal.sh`](sign-oscal.sh) | Signs the control mapping itself, so the *claim* is tamper-evident and not just the evidence. |
 | [`terraform/`](terraform/) | The keyless CI identity and the WORM evidence vault. [One apply.](terraform/README.md) |
-| [`ASSURANCE-BOUNDARY.md`](ASSURANCE-BOUNDARY.md) | What the pipeline does **not** prove. Seven limits, written down deliberately. |
+| [`ASSURANCE-BOUNDARY.md`](ASSURANCE-BOUNDARY.md) | What the pipeline does **not** prove. Eight limits, written down deliberately. |
 | [`PORTFOLIO-CASE-STUDY.md`](PORTFOLIO-CASE-STUDY.md) | The six weeks presented as one system. |
 | [`evidence/`](evidence/) | Transcripts: the four-leg chain, the WORM delete refusal, the converter's guards, the pipeline run. |
 
