@@ -14,6 +14,14 @@ rejects anything else, and hand-writing them is the most common way a trestle
 document fails validation. Second, the four implemented-requirements share one
 source of truth for the commit pin, the namespace, and the evidence URIs, so a
 link cannot be right in three places and stale in the fourth.
+
+This is the opposite of ../../oscal-from-conftest.py, deliberately. That
+converter runs unattended in CI on every gate run, so its UUIDs are SHA-256
+derived from content (see stable_uuid there) and its output is byte-reproducible
+— a reviewer can regenerate the document and diff it against the committed one.
+This script is run by hand, rarely, and its output is signed afterwards; fresh
+v4 UUIDs are correct here for the same reason hash-derived ones are correct
+there. Reproducibility belongs where a machine re-runs it unattended.
 """
 import datetime
 import json

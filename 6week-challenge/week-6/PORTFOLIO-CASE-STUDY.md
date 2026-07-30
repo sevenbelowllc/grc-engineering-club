@@ -58,6 +58,7 @@ Evidence over adjectives. Every row is a link to something that ran.
 | The OSCAL is schema-valid | `trestle validate -a` → **5 documents VALID** ([in the transcript](evidence/pipeline-verification.txt)) |
 | An assessor can traverse it | [`./traverse.sh` → **4/4 controls** walked from profile to verified evidence](evidence/chain-intact-four-legs.txt) |
 | The converter fails when it should | [Three guard cases, exit 3, nothing written](evidence/converter-guards.txt) |
+| The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30422410397](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30422410397) passed 12/12 with zero skips, against live AWS |
 
 ---
 
@@ -137,6 +138,14 @@ simply no longer mentions SC-28 — and nothing anywhere turns red.
 That is how automated compliance rots: not with a failure, but with a silence.
 Checking for the silence costs eight lines.
 
+The same principle earned its keep a second time, in an unrelated subsystem.
+`verify-pipeline.sh` exits `0` when checks are *skipped* — right for a laptop
+with a partial toolchain, wrong for CI, where a skip means an install step
+broke. A CI job that trusted the exit code alone would go green having run six
+checks instead of twelve. So the job parses the summary line and fails the build
+on a non-zero skip count. Two guards, two subsystems, one failure mode: a green
+signal that quietly covers less than it appears to.
+
 ---
 
 ## What I would build next
@@ -199,6 +208,12 @@ every finding is a thing that already happened. Moving the same rule from
 "monitor" to "required status check" changes what it *is*. The violation stops
 being an incident and starts being a build error, which nobody escalates,
 nobody writes a ticket for, and nobody has to explain to an auditor.
+
+The argument applies to the verification as much as to the controls. The
+twelve-check verdict this page opens with used to be something I remembered to
+run; it now runs on every pull request and is itself a required status check
+alongside the gate. The check that proves the pipeline works is no longer
+allowed to be the one nobody ran.
 
 ---
 
