@@ -151,6 +151,32 @@ distinguish them anywhere except in the `evidence-signer-identity` prop that
 **What would close it:** capturing runtime evidence from a scheduled workflow
 rather than by hand, so every signature in the chain is a workflow signature.
 
+## 8. The verifier's own transcript gets none of the four properties
+
+`verify-pipeline.sh` runs on every pull request as a required status check, and
+its twelve-check verdict is the artifact a reader is most likely to treat as
+proof that everything else here works. It is also the least protected thing in
+the build.
+
+The job uploads the transcript with `actions/upload-artifact` and does nothing
+further to it: no SHA-256 sidecar, no cosign signature, no Rekor entry, no
+Object Lock — none of the four legs section 3 enumerates. It expires on GitHub's
+artifact retention, which makes the record of the verification shorter-lived
+than the vault objects it verifies. The copy committed at
+[`evidence/pipeline-verification.txt`](evidence/pipeline-verification.txt) is a
+hand-run capture that predates the CI job, so the most-cited transcript in the
+repository is also its least machine-attested.
+
+This is a deliberate trade rather than an oversight. The verifying job's role
+has a read-only identity policy precisely so that the thing checking the vault
+cannot write to it. Signing and depositing the transcript from that job would
+grant the verifier write access to the evidence it verifies — buying
+preservation by spending separation of duties, which is the wrong direction.
+
+**What would close it:** a separate job with its own narrowly-scoped role that
+signs and deposits the transcript after the verifying job finishes, so the
+identity producing the record is not the identity auditing the vault.
+
 ---
 
 ## Why write this down

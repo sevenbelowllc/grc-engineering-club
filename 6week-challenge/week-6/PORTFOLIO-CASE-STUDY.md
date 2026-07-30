@@ -219,7 +219,7 @@ allowed to be the one nobody ran.
 
 ## What this does *not* prove
 
-Seven limits, written down deliberately:
+Eight limits, written down deliberately:
 [**ASSURANCE-BOUNDARY.md**](ASSURANCE-BOUNDARY.md).
 
 The short version — plan-time is not runtime; drift made outside Terraform is
