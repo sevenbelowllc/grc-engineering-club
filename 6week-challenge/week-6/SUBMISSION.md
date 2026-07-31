@@ -215,4 +215,6 @@ Both, or the claim is weaker than it looks.
 - [x] `verify-pipeline` runs on every pull request and is a required status
       check — the fourteen-check verdict now blocks the merge instead of waiting
       for somebody to remember to run it
-- [ ] Case study published to the portfolio site
+- [x] Case study published to the portfolio site — live at
+      [sevenbelow.com/resources/research/grc-engineering-pipeline](https://www.sevenbelow.com/resources/research/grc-engineering-pipeline),
+      with the [14-page PDF](https://www.sevenbelow.com/whitepapers/sevenbelow-grc-engineering-pipeline-v1.0.pdf)
