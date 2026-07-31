@@ -1,0 +1,4 @@
+integrity:    OK  (3dd2a1afc03e35fe73d46c12823e41871abd1f5fccea1b0d4239994b83c9448e)
+authenticity: OK  (issuer=https://token.actions.githubusercontent.com)
+preservation: OK  (locked until 2026-07-28T02:09:29.395000+00:00)
+CHAIN INTACT

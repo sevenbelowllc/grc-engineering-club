@@ -2,6 +2,63 @@
 
 A community for practitioners who treat **Governance, Risk, and Compliance (GRC)** as an engineering discipline — building, automating, and measuring compliance the way we build software.
 
+---
+
+## 📦 In this repo: a working compliance pipeline
+
+**[`6week-challenge/`](6week-challenge/)** — six weeks of the GRC Engineering
+Club challenge, built as one system rather than six exercises.
+
+It provisions AWS infrastructure that satisfies NIST 800-53 controls, proves
+those controls with policy-as-code, blocks pull requests that break them, signs
+the resulting evidence, preserves it where nobody can delete it, watches the
+running account, and publishes an OSCAL control mapping an assessor can traverse
+without talking to anyone.
+
+```bash
+./verify-pipeline.sh   # every eligibility check, one verdict
+./traverse.sh          # profile → component → evidence → CHAIN INTACT
+```
+
+**With nothing installed**, `verify-pipeline.sh` reports `PIPELINE INCOMPLETE` and
+names every check it could not run. That is the honest answer, and it is not a
+pass — it is the script declining to claim a result it did not obtain. Two
+transcripts of full runs are committed and readable without installing anything:
+[macOS](6week-challenge/week-6/evidence/pipeline-verification.txt) and
+[Linux](6week-challenge/week-6/evidence/pipeline-verification-linux.txt). The same
+command runs on [every pull request](.github/workflows/grc-gate.yml) with the full
+toolchain, and the build fails if even one check skips.
+
+**To run it yourself**, the checks need these. Nothing is installed for you — a
+verifier that modifies the machine it is auditing has traded away the thing it
+was built to establish.
+
+| Tool | Enables | Install |
+|---|---|---|
+| `jq` | the traversal graph walk | `brew install jq` / `apt install jq` |
+| [`cosign`](https://github.com/sigstore/cosign) | signature + identity verification (checks 4, 6) | `brew install cosign` |
+| [`conftest`](https://www.conftest.dev/) | the policy gate, both directions | `brew install conftest` |
+| `compliance-trestle` | OSCAL schema validation | `pip install compliance-trestle` |
+| `terraform` | `validate` and plan regeneration | `brew install terraform` |
+| `aws` + credentials | Object Lock retention on the vault | private by design; expected to skip |
+
+`terraform validate` additionally needs an initialised working directory, and the
+script will **not** run `terraform init` for you — that is a several-hundred-megabyte
+provider download on someone else's machine. Run `terraform init` in the week
+directories yourself if you want those checks to execute.
+
+| | |
+|---|---|
+| **The build, week by week** | [6week-challenge/README.md](6week-challenge/) |
+| **The capstone** | [week-6](6week-challenge/week-6/) — OSCAL, the traversal, the case study |
+| **What it does *not* prove** | [ASSURANCE-BOUNDARY.md](6week-challenge/week-6/ASSURANCE-BOUNDARY.md) |
+| **The interesting bit** | [conftest verdicts → OSCAL assessment-results](6week-challenge/week-6/assessment-results.md) |
+
+Every claim in it is checkable by running something. Nothing needs an AWS
+account, and nothing needs the author's cooperation.
+
+---
+
 ## What is GRC Engineering?
 
 GRC Engineering is the practice of applying software-engineering principles to governance, risk, and compliance work. Instead of static spreadsheets, point-in-time audits, and manual evidence collection, GRC engineers build **systems** that make compliance continuous, testable, and version-controlled:

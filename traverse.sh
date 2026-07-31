@@ -1,0 +1,272 @@
+#!/usr/bin/env bash
+# traverse.sh — walk the audit graph the way an assessor would, and prove it lands.
+#
+#     profile  ->  component  ->  evidence href  ->  fetch  ->  verify  ->  CHAIN INTACT
+#
+# This is the claim the whole six-week build is making: that a stranger can
+# confirm a control without asking anybody anything. So it should not be a
+# paragraph in a README, it should be a script that exits non-zero when it stops
+# being true.
+#
+# Every step reads from the OSCAL documents. Nothing about which controls exist,
+# which bundle proves them, or who signed it is hardcoded here — pull the
+# evidence URL out of the component definition, change nothing else, and this
+# script follows it. That is what makes it a traversal rather than a re-enactment.
+#
+# The evidence is fetched over the network from the published URL, not read from
+# the working tree, because "the file next to me verifies" is a much weaker claim
+# than "the file a stranger downloads verifies".
+#
+# Usage:
+#   ./traverse.sh                 # every control in the profile
+#   ./traverse.sh sc-28           # one control
+#   ./traverse.sh --offline       # verify the local copies instead of fetching
+# `set -uo pipefail`, deliberately without `-e`. Every other script here uses
+# `-euo`; this one must not, because a failing control is a RESULT it has to
+# report, not an error that should abort the walk. With `-e` the first broken
+# link would kill the script before the remaining controls were tried, and a
+# partial traversal would look like a complete one.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+OSCAL="$HERE/6week-challenge/week-6/oscal"
+PROFILE="$OSCAL/profiles/grc-pipeline-controls/profile.json"
+COMPONENT="$OSCAL/component-definitions/grc-pipeline/component-definition.json"
+VERIFY="$HERE/6week-challenge/week-4/verify-evidence.sh"
+
+# --- shared helpers ---------------------------------------------------------
+# fail() is byte-identical to the copy in week-4/verify-evidence.sh,
+# week-5/sign-evidence.sh and week-6/sign-oscal.sh. Change one, change all.
+#
+# usage() is local to this script and exists to keep the conventional exit-code
+# split: 2 means "you invoked it wrong or a tool is missing", 1 means "the
+# traversal ran and something did not verify". Collapsing them into one code
+# would make a missing jq indistinguishable from a broken chain of custody,
+# which is precisely the distinction anybody scripting around this needs.
+# Note the single space after fail() — do not pad it to line up with usage()
+# below. Byte-identity with the other three copies is the property being kept,
+# and cosmetic alignment is exactly the kind of edit that silently breaks it.
+fail() { echo "FAIL: $*" >&2; exit 1; }
+usage() { echo "traverse.sh: $*" >&2; exit 2; }
+
+OFFLINE=0
+WANT=""
+for arg in "$@"; do
+  case "$arg" in
+    --offline) OFFLINE=1 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -*) usage "unknown option: $arg" ;;
+    *) WANT="$arg" ;;
+  esac
+done
+
+for f in "$PROFILE" "$COMPONENT" "$VERIFY"; do
+  [ -f "$f" ] || usage "missing: $f"
+done
+command -v jq >/dev/null || usage "needs jq on PATH"
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# --- reporting vocabulary ---------------------------------------------------
+# Byte-identical to the copy in verify-pipeline.sh. Each script carries the
+# subset it uses; every definition below is identical wherever it appears.
+# Change one, change the other.
+#
+#   c_bold c_green c_red c_grey   inline colourisers, no trailing newline
+#   rule                          a horizontal rule
+#   title  section                a bold line; a bold line preceded by a blank
+#   ok  bad  skip                 one result line AND the counter that goes with it
+#   need                          is this tool on PATH
+#
+# The counters live inside ok/bad/skip deliberately. A reporting helper that
+# prints a failure without recording it is how a closing summary ends up
+# disagreeing with the body of output above it — and the summary is the part
+# people actually read.
+#
+# The closing message is NOT shared. Both scripts build it from `rule`, `c_bold`
+# and these counters, but each says its own thing, because "TRAVERSAL COMPLETE —
+# 4/4 control(s) walked" is quoted verbatim in the README, the submission and
+# the committed evidence transcripts. Unifying the words would churn documented
+# output for no gain; unifying the vocabulary that produces them is the point.
+PASS=0; FAIL=0; SKIP=0
+FAILED=()
+
+c_bold() { printf '\033[1m%s\033[0m' "$*"; }
+c_green() { printf '\033[32m%s\033[0m' "$*"; }
+c_red() { printf '\033[31m%s\033[0m' "$*"; }
+
+rule() { printf '%s\n' "------------------------------------------------------------------------"; }
+title() { printf '%s\n' "$(c_bold "$*")"; }
+
+ok() { printf '  [%s] %s\n' "$(c_green PASS)" "$1"; PASS=$((PASS + 1)); }
+bad() { printf '  [%s] %s\n' "$(c_red FAIL)" "$1"; FAIL=$((FAIL + 1)); FAILED+=("$1"); }
+
+# --- 1. PROFILE: what is in scope ------------------------------------------
+# Written as a pipeline of plain `.["key"]` steps rather than the more compact
+# `.imports[].["include-controls"]`. That compact form is accepted by jq 1.7 but
+# is a syntax error in jq 1.6, which is what Debian 12 and Ubuntu 22.04 ship —
+# so the tidier spelling worked on the author's Mac and produced an empty list
+# everywhere else.
+CONTROLS="$(jq -r '
+  .profile.imports[]
+  | .["include-controls"][]?
+  | .["with-ids"][]?' "$PROFILE")"
+CATALOG="$(jq -r '.profile.imports[0].href' "$PROFILE")"
+
+title "profile: $(jq -r '.profile.metadata.title' "$PROFILE")"
+echo "  catalog:  $CATALOG"
+echo "  in scope: $(echo "$CONTROLS" | tr '\n' ' ')"
+
+# An empty selection is a broken profile, not an empty success. Without this the
+# script walks zero controls, never enters the loop, never increments FAIL, and
+# prints "TRAVERSAL COMPLETE — 0/0" with exit 0 — a green result that verified
+# nothing, which is the exact failure this whole pipeline exists to prevent.
+if [ -z "${CONTROLS//[[:space:]]/}" ]; then
+  cat >&2 <<EOF
+
+Either include-controls is empty, or jq could not read it — check that
+  jq -r '.profile.imports[] | .["include-controls"][]?' $PROFILE
+returns rows.
+EOF
+  fail "BROKEN GRAPH: the profile selects no controls"
+fi
+
+if [ -n "$WANT" ]; then
+  echo "$CONTROLS" | grep -qx "$WANT" || {
+    cat >&2 <<EOF
+
+The profile is the scope statement: a control it does not select is a control
+this pipeline does not claim. In scope: $(echo "$CONTROLS" | tr '\n' ' ')
+EOF
+    usage "control '$WANT' is not in the profile"
+  }
+  CONTROLS="$WANT"
+fi
+
+for CONTROL in $CONTROLS; do
+  echo
+  rule
+  title "control: ${CONTROL}"
+  rule
+
+  # --- 2. COMPONENT: how it is implemented ---------------------------------
+  REQ="$(jq --arg c "$CONTROL" '
+    .["component-definition"].components[]
+    | .["control-implementations"][]
+    | .["implemented-requirements"][]
+    | select(.["control-id"] == $c)' "$COMPONENT")"
+
+  if [ -z "$REQ" ]; then
+    bad "$CONTROL — BROKEN GRAPH: the profile selects it but no implemented-requirement covers it"
+    echo "         The scope claims more than the implementation states."
+    continue
+  fi
+
+  p() { echo "$REQ" | jq -r --arg n "$1" '[.props[]? | select(.name==$n) | .value] | join(", ")'; }
+
+  echo "  resources:   $(p terraform-resource)"
+  POLICY="$(p policy-package)"
+  echo "  policy:      ${POLICY:-<none — see remarks>}"
+  echo "  verified at: $(p verification-point)"
+
+  # --- 3. EVIDENCE HREF ----------------------------------------------------
+  # The fetchable copy (https) is what a stranger can reach; the s3:// copy is
+  # the one nobody can delete. Take the first of each.
+  BUNDLE_URL="$(echo "$REQ" | jq -r '[.links[]? | select(.rel=="evidence") | .href | select(startswith("http"))][0] // empty')"
+  VAULT_URI="$(echo "$REQ" | jq -r '[.links[]? | select(.rel=="evidence") | .href | select(startswith("s3://"))][0] // empty')"
+
+  if [ -z "$BUNDLE_URL" ]; then
+    bad "$CONTROL — BROKEN GRAPH: no fetchable rel=\"evidence\" link on this requirement"
+    continue
+  fi
+  echo "  evidence:    $BUNDLE_URL"
+  [ -n "$VAULT_URI" ] && echo "  vault:       $VAULT_URI"
+
+  # The verifier pins are part of the claim, so they come out of the document
+  # rather than out of this script's defaults. An unpinned cosign verify-blob
+  # accepts a signature from anyone at all.
+  ISSUER="$(p evidence-signer-issuer)"
+  IDENTITY="$(p evidence-signer-identity)"
+  echo "  signer:      ${IDENTITY:-<unpinned>}"
+  echo "               via ${ISSUER:-<unpinned>}"
+
+  if [ -z "$ISSUER" ] || [ -z "$IDENTITY" ]; then
+    bad "$CONTROL — BROKEN GRAPH: the document does not say who signed this evidence"
+    echo "         Without a pinned identity, 'verified' would mean 'signed by somebody'."
+    continue
+  fi
+
+  # --- 4. FETCH ------------------------------------------------------------
+  NAME="$(basename "$BUNDLE_URL")"
+  DEST="$TMP/$CONTROL"
+  mkdir -p "$DEST"
+
+  echo
+  if [ "$OFFLINE" = "1" ]; then
+    # Map the published URL back to the working tree. Only for use on a plane.
+    REL="${BUNDLE_URL#*/6week-challenge/}"
+    LOCAL="$HERE/6week-challenge/$REL"
+    echo "  [offline] copying from the working tree: 6week-challenge/$REL"
+    for ext in "" ".sha256" ".sig.bundle"; do
+      cp "$LOCAL$ext" "$DEST/$NAME$ext" 2>/dev/null || {
+        bad "$CONTROL — FETCH FAILED: no local $LOCAL$ext"; continue 2; }
+    done
+  else
+    echo "  fetching the bundle, its sidecar and its signature from the published URL"
+    OK=1
+    for ext in "" ".sha256" ".sig.bundle"; do
+      curl -fsSL --max-time 60 -o "$DEST/$NAME$ext" "$BUNDLE_URL$ext" || {
+        bad "$CONTROL — FETCH FAILED: $BUNDLE_URL$ext did not resolve"
+        echo "         An evidence link that 404s is an attestation that proves nothing."
+        OK=0; break; }
+    done
+    [ "$OK" = "1" ] || continue
+  fi
+
+  # --- 5. VERIFY -----------------------------------------------------------
+  # Preservation is checked too when the s3 URI is present and AWS credentials
+  # happen to be available. Without them the verifier says "skipped", which is
+  # the honest answer: an unreadable vault is not a verified vault.
+  VAULT_ENV=()
+  if [ -n "$VAULT_URI" ] && command -v aws >/dev/null 2>&1 \
+     && aws sts get-caller-identity >/dev/null 2>&1; then
+    NOSCHEME="${VAULT_URI#s3://}"
+    VAULT_ENV=(
+      "EVIDENCE_VAULT_BUCKET=${NOSCHEME%%/*}"
+      "EVIDENCE_VAULT_KEY=${NOSCHEME#*/}"
+    )
+  fi
+
+  echo
+  # ${arr[@]+"${arr[@]}"} rather than "${arr[@]}": on bash before 4.4, expanding
+  # an EMPTY array under `set -u` aborts with "unbound variable". That includes
+  # the bash 3.2 macOS ships and some older container images. VAULT_ENV is empty
+  # in exactly the common case — a reader with no AWS credentials — so the plain
+  # form breaks the script for most of its audience. This form is correct on
+  # every bash from 3.2 up.
+  if env ${VAULT_ENV[@]+"${VAULT_ENV[@]}"} \
+       EXPECT_ISSUER="$ISSUER" EXPECT_IDENTITY="$IDENTITY" \
+       "$VERIFY" "$DEST/$NAME" 2>&1 | sed 's/^/  /'; then
+    ok "$CONTROL — chain verified end to end"
+  else
+    bad "$CONTROL — verification failed, see above"
+  fi
+done
+
+echo
+rule
+if [ "$FAIL" -eq 0 ]; then
+  title "TRAVERSAL COMPLETE — $PASS/$PASS control(s) walked from profile to verified evidence"
+  exit 0
+fi
+title "TRAVERSAL INCOMPLETE — $PASS passed, $FAIL failed"
+# Repeat what failed, the way verify-pipeline.sh does. On a four-control walk the
+# failures scroll off before the summary lands, and a bare count tells a reader
+# how bad it is without telling them what to go and look at.
+#
+# ${arr[@]+"${arr[@]}"} — expanding an empty array under `set -u` aborts on bash
+# before 4.4. Unreachable here (FAIL > 0 implies FAILED is populated), but the
+# guard costs nothing and the next edit might move this block.
+for c in ${FAILED[@]+"${FAILED[@]}"}; do echo "  - $c"; done
+exit 1

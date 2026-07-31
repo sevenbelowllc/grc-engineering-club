@@ -3,10 +3,10 @@
 #
 # Why this file lives at the repo root: GitHub Actions only discovers workflows
 # under .github/workflows/ at the repository root. The starter skeleton shipped a
-# copy nested under 6week-challenge/week3/week-3/.github/workflows/, which can
+# copy nested under 6week-challenge/week-3/week-3/.github/workflows/, which can
 # never trigger. That copy is kept for reference; THIS file is the live gate.
 #
-# The plan and policies it evaluates live under 6week-challenge/week3/.
+# The plan and policies it evaluates live under 6week-challenge/week-3/.
 name: grc-gate
 
 on:
@@ -22,11 +22,15 @@ permissions:
 
 env:
   CONFTEST_VERSION: "0.68.2"
-  WEEK3_DIR: 6week-challenge/week3
+  WEEK3_DIR: 6week-challenge/week-3
 
 jobs:
   grc-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write   # required so cosign can mint its keyless OIDC token
     steps:
       - uses: actions/checkout@v4
 
@@ -42,26 +46,168 @@ jobs:
           sudo install -m 0755 conftest /usr/local/bin/conftest
           conftest --version
 
-      # Run the three policy namespaces against the committed plan, capture the
-      # machine-readable result as evidence, and fail closed.
+      # Run the three policy namespaces against the committed plan and record the
+      # verdict as a step output. `set -o pipefail` ensures Conftest's exit code
+      # survives the `tee` that streams JSON to the evidence file.
       #
-      # `set -o pipefail` is the whole trick: Conftest prints its JSON report to
-      # stdout and THEN exits non-zero on any violation. `tee` writes that report
-      # to the evidence file before the non-zero status propagates through the
-      # pipe and fails this step. So we get both — the evidence is saved AND the
-      # gate fails when a control breaks. One run, one source of truth.
+      # Wrapping the pipeline in `if...; then ... else ... fi` means a policy
+      # violation does NOT abort this step (bash suppresses errexit for an if
+      # condition). Instead we record the result — "gate=pass" or "gate=fail" —
+      # to $GITHUB_OUTPUT, and let the final "Enforce gate verdict" step decide
+      # the job outcome. That step is the single source of truth for red/green.
       - name: Run policy gate
         id: gate
         run: |
           set -o pipefail
           mkdir -p "${WEEK3_DIR}/evidence"
-          conftest test "${WEEK3_DIR}/plan.json" \
-            --policy "${WEEK3_DIR}/policies" \
-            --namespace compliance.sc28_aws \
-            --namespace compliance.ac3_aws \
-            --namespace compliance.cm6_aws \
-            --output json \
-            | tee "${WEEK3_DIR}/evidence/conftest-results.json"
+          if conftest test "${WEEK3_DIR}/plan.json" \
+               --policy "${WEEK3_DIR}/policies" \
+               --namespace compliance.sc28_aws \
+               --namespace compliance.ac3_aws \
+               --namespace compliance.cm6_aws \
+               --output json \
+               | tee "${WEEK3_DIR}/evidence/conftest-results.json"; then
+            echo "gate=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------------
+      # OSCAL. The control mapping is part of the deliverable, so it is gated
+      # like everything else — a component definition that no longer validates
+      # is a control mapping no assessor can consume, and it should turn a build
+      # red rather than sit in the repo looking authoritative.
+      # ---------------------------------------------------------------------
+      - name: Set up Python for trestle
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install compliance-trestle
+        # Pinned for the same reason Conftest is: a moving version is not
+        # evidence you can reproduce.
+        run: pip install --quiet compliance-trestle==4.2.0
+
+      - name: Validate the committed OSCAL documents
+        id: oscal
+        working-directory: 6week-challenge/week-6/oscal
+        run: |
+          if trestle validate -a; then
+            echo "oscal=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "oscal=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Turn THIS run's verdicts into an OSCAL assessment-results document, so
+      # every pull request produces machine-readable evidence of its own control
+      # state instead of a JSON file only this repo knows how to read.
+      #
+      # Not committed back to the branch: the document describes one run. It goes
+      # into the signed bundle and the vault, which is where the record of a
+      # single run belongs. Committing it would put a mutable copy of an
+      # immutable fact in the working tree.
+      #
+      # Recorded rather than fatal, like the policy gate above: a mapping error
+      # is a real failure, but the evidence of the run still has to survive it.
+      - name: Convert the gate verdicts to OSCAL assessment-results
+        id: convert
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          OSCAL_DIR: 6week-challenge/week-6/oscal
+        run: |
+          set -uo pipefail
+          EV=(--evidence "$RUN_URL")
+          if [ -n "${VAULT_BUCKET:-}" ]; then
+            EV+=(--evidence "s3://${VAULT_BUCKET}/runs/${RUN_ID}/evidence.tar.gz")
+          fi
+          OUT="${OSCAL_DIR}/assessment-results/ci-run/assessment-results.json"
+          if python 6week-challenge/week-6/oscal-from-conftest.py \
+               --conftest "${WEEK3_DIR}/evidence/conftest-results.json" \
+               --component "${OSCAL_DIR}/component-definitions/grc-pipeline/component-definition.json" \
+               --plan-href "../../assessment-plans/grc-pipeline-assessment/assessment-plan.json" \
+               "${EV[@]}" \
+               --assessed-at "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+               --note "Generated in CI from workflow run ${RUN_ID} at commit ${SHA}." \
+               -o "$OUT" \
+             && ( cd "$OSCAL_DIR" && trestle validate -f assessment-results/ci-run/assessment-results.json ); then
+            cp "$OUT" "${WEEK3_DIR}/evidence/assessment-results.json"
+            echo "convert=pass" >> "$GITHUB_OUTPUT"
+          else
+            echo "convert=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Cosign
+        # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
+        # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
+        # bundle instead, which the older @v3 installer cannot fetch (404).
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
+
+      - name: Bundle, hash, and sign the evidence
+        run: |
+          set -euo pipefail
+          cp "${WEEK3_DIR}/plan.json" "${WEEK3_DIR}/evidence/"   # stage the evaluated plan next to the verdict
+          # Sign exactly THIS run's gate output — the plan that was evaluated,
+          # the raw verdict, and the OSCAL assessment-results derived from it —
+          # not the whole shared evidence/ dir (which also holds prior weeks'
+          # static screenshots). Keeps the signed bundle small and self-contained.
+          #
+          # The assessment-results file is included only if the conversion
+          # succeeded. When it did not, the bundle is still produced and signed
+          # with what the run did prove: evidence that disappears on failure is
+          # not evidence.
+          FILES=(conftest-results.json plan.json)
+          if [ -f "${WEEK3_DIR}/evidence/assessment-results.json" ]; then
+            FILES+=(assessment-results.json)
+          fi
+          tar -czf "${WEEK3_DIR}/evidence.tar.gz" \
+            -C "${WEEK3_DIR}/evidence" "${FILES[@]}"
+          # Write the sidecar in the standard "<hash>  <name>" form, from inside
+          # the bundle's directory so the recorded name is bare.
+          #
+          # It used to be `sha256sum … | awk '{print $1}'`, a bare hash. That is
+          # readable by verify-evidence.sh, which takes field 1, but NOT by
+          # `sha256sum -c` — so the one command anybody would reach for first
+          # failed on our own evidence. Running from the directory also keeps
+          # the workspace path (6week-challenge/week-3/…) out of published
+          # evidence; same defect week 5 had with an absolute path.
+          ( cd "${WEEK3_DIR}" && sha256sum evidence.tar.gz > evidence.tar.gz.sha256 )
+          cosign sign-blob --yes \
+            --bundle "${WEEK3_DIR}/evidence.tar.gz.sig.bundle" \
+            "${WEEK3_DIR}/evidence.tar.gz"
+
+      # The vault upload below calls the AWS CLI, which needs credentials this job
+      # did not previously have — the only authenticated job was grc-gate-oidc, so
+      # the upload step could never have succeeded. Assume the same read-plus-vault
+      # -write role via OIDC (no stored keys); `id-token: write` is already granted
+      # at the job level for cosign.
+      #
+      # Gated on BOTH variables: with either unset the whole vault path stays
+      # dormant and skipped rather than failing.
+      - name: Configure AWS credentials for the vault upload (OIDC, no stored keys)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Upload signed bundle to the immutable vault (dormant)
+        if: always() && vars.EVIDENCE_VAULT_BUCKET != '' && vars.AWS_GATE_ROLE_ARN != ''
+        env:
+          VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          KEY="runs/${RUN_ID}/evidence.tar.gz"
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
+            --key "$KEY" --body "${WEEK3_DIR}/evidence.tar.gz"
+          aws s3api put-object --bucket "$VAULT_BUCKET" \
+            --key "$KEY.sig.bundle" --body "${WEEK3_DIR}/evidence.tar.gz.sig.bundle"
+          echo "Vaulted $KEY"
 
       # Upload the evidence whether the gate passed or failed. The entire point
       # of CI evidence is that it survives the failure — so `if: always()`.
@@ -70,7 +216,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grc-gate-evidence
-          path: ${{ env.WEEK3_DIR }}/evidence/
+          path: |
+            ${{ env.WEEK3_DIR }}/evidence/
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sha256
+            ${{ env.WEEK3_DIR }}/evidence.tar.gz.sig.bundle
           if-no-files-found: error
 
       # Post the verdict onto the PR so a reviewer sees the control result in the
@@ -79,6 +229,9 @@ jobs:
       - name: Comment gate verdict on PR
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          OSCAL: ${{ steps.oscal.outputs.oscal }}
+          CONVERT: ${{ steps.convert.outputs.convert }}
         with:
           script: |
             const fs = require('fs');
@@ -112,6 +265,13 @@ jobs:
               passed
                 ? '_Every control passed. This PR is mergeable._'
                 : '_A control failed. With branch protection on, this merge is blocked until it is fixed._',
+              '',
+              `OSCAL: documents ${process.env.OSCAL === 'pass' ? 'VALID' : '**INVALID**'} · `
+                + `assessment-results ${process.env.CONVERT === 'pass' ? 'generated and signed' : '**not generated**'}`,
+              '',
+              '<sub>The signed evidence bundle for this run contains the plan, the raw verdict, '
+                + 'and an OSCAL assessment-results document derived from it. Verify with '
+                + '`6week-challenge/week-4/verify-evidence.sh`.</sub>',
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -120,6 +280,35 @@ jobs:
               body,
             });
 
+      # Single source of truth for red/green. Every check above records its
+      # verdict and keeps going, so the evidence is always signed and vaulted
+      # before anything is allowed to fail the job.
+      - name: Enforce gate verdict
+        if: always()
+        env:
+          GATE: ${{ steps.gate.outputs.gate }}
+          OSCAL: ${{ steps.oscal.outputs.oscal }}
+          CONVERT: ${{ steps.convert.outputs.convert }}
+        run: |
+          RED=0
+          if [ "$GATE" != "pass" ]; then
+            echo "::error::A control failed the policy gate."
+            RED=1
+          fi
+          if [ "$OSCAL" != "pass" ]; then
+            echo "::error::The committed OSCAL documents did not validate. A control mapping an assessor cannot parse is not a control mapping."
+            RED=1
+          fi
+          if [ "$CONVERT" != "pass" ]; then
+            echo "::error::Could not convert this run's verdicts to OSCAL assessment-results. Usually this means the Rego packages and the component definition's policy-package props have drifted apart — see the step log for which direction."
+            RED=1
+          fi
+          if [ "$RED" = "1" ]; then
+            echo "Gate is red (evidence was signed and vaulted first)."
+            exit 1
+          fi
+          echo "All controls passed, OSCAL valid, assessment-results generated."
+
   # ---------------------------------------------------------------------------
   # STRETCH — keyless plan generation via GitHub OIDC.
   #
@@ -127,7 +316,7 @@ jobs:
   # GitHub OIDC (no stored keys), generates the plan in CI, and runs the same
   # gate against it. It is gated on the `AWS_GATE_ROLE_ARN` repo variable, so it
   # stays dormant (skipped, not failing) until you set that variable after
-  # applying 6week-challenge/week3/oidc/iam-oidc.tf. See oidc/README-oidc.md.
+  # applying 6week-challenge/week-3/oidc/iam-oidc.tf. See oidc/README-oidc.md.
   # ---------------------------------------------------------------------------
   grc-gate-oidc:
     runs-on: ubuntu-latest
@@ -138,7 +327,7 @@ jobs:
                          # the credential exchange fail silently.
     defaults:
       run:
-        working-directory: 6week-challenge/week3/terraform
+        working-directory: 6week-challenge/week-3/terraform
     steps:
       - uses: actions/checkout@v4
 
@@ -190,5 +379,142 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grc-gate-evidence-oidc
-          path: 6week-challenge/week3/evidence/
+          path: 6week-challenge/week-3/evidence/
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # verify-pipeline: run the repo's own verifier, in CI, on every pull request.
+  #
+  # verify-pipeline.sh is the single verdict this repo gives on itself — fourteen
+  # checks from `terraform validate` through to a full profile-to-evidence
+  # traversal. Until now it only ran when a person remembered to run it, and
+  # three bugs in the week-6 session were caught solely by running it on a
+  # second machine. All three had the same shape: something reported success
+  # while verifying nothing.
+  #
+  # The job runs WITH credentials on purpose. The two vault checks read Object
+  # Lock retention, and without credentials they report `skipped` — which the
+  # script correctly treats as honest, and which exits 0. A job that accepted
+  # that would go green while verifying less than it claims, which is the exact
+  # failure `oscal-from-conftest.py`'s mapping guard exists to prevent. So the
+  # credentials are what make the check mean something, and the explicit
+  # `0 skipped` assertion below is what keeps it meaning something when a tool
+  # silently stops installing.
+  #
+  # The role's identity policy is read-only. Writes to the vault come from a
+  # bucket policy that grants PutObject alone, so this job cannot modify the
+  # evidence it verifies.
+  # ---------------------------------------------------------------------------
+  verify-pipeline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for the OIDC exchange; no stored AWS keys
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # Same pinned version as the gate above, from the same workflow-level env.
+      # Deliberately not a second pin site: tool versions are already pinned in
+      # too many places in this repo.
+      - name: Install Conftest ${{ env.CONFTEST_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            -o conftest.tar.gz
+          tar -xzf conftest.tar.gz conftest
+          sudo install -m 0755 conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Set up Python for trestle
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install compliance-trestle
+        run: pip install --quiet compliance-trestle==4.2.0
+
+      - name: Install Cosign
+        # cosign-installer@v4 is required to install cosign v3.x: the v3 releases
+        # ship no detached `.sig`, self-verifying via the new `.sigstore.json`
+        # bundle instead, which the older @v3 installer cannot fetch (404).
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
+
+      # Read-only. ReadOnlyAccess covers s3:GetObjectRetention, which is all the
+      # vault checks need.
+      - name: Configure AWS credentials (OIDC, read-only, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # verify-pipeline.sh deliberately does NOT run `terraform init` for you.
+      # `terraform validate` needs provider schemas, and initialising on the
+      # reader's behalf means several hundred megabytes of download per directory
+      # on a machine that never asked for it — and, when the download fails,
+      # a `[FAIL] week-1/solution` that reads as broken infrastructure rather than
+      # as a cold cache. So the script skips uninitialised directories and says so.
+      #
+      # CI is the machine that HAS agreed to do the work, so it does the init here.
+      # This is the same split as the `0 skipped` assertion below: the script
+      # reports honestly, the job decides how much is good enough. It is also why
+      # the assertion is load-bearing rather than ceremonial — it caught exactly
+      # this, five checks quietly skipping, the first time the script changed.
+      #
+      # One shared plugin cache across all four directories and the temp copy that
+      # plan-from-source.sh initialises, so the provider is fetched once per run
+      # rather than five times.
+      - name: Initialise the terraform working directories
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tf-plugin-cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for d in week-1/solution week-3/terraform week-5/terraform week-6/terraform; do
+            terraform -chdir="6week-challenge/$d" init -backend=false -input=false -no-color
+          done
+
+      # The same command a human runs. No CI-only flags: a verifier that behaves
+      # differently in CI is a second thing to trust.
+      - name: Run the full verification
+        env:
+          EVIDENCE_VAULT_BUCKET: ${{ vars.EVIDENCE_VAULT_BUCKET }}
+        run: |
+          set -o pipefail
+          ./verify-pipeline.sh 2>&1 | tee verify-pipeline.log
+
+      # An absent verdict is not a passing verdict.
+      #
+      # verify-pipeline.sh exits 0 when checks are SKIPPED, which is right for a
+      # laptop with a partial toolchain and wrong for CI, where a skip means an
+      # install step broke. Trusting the exit code alone would let this job go
+      # green having run six checks instead of fourteen. So the summary line is
+      # parsed and a non-zero skip count fails the build.
+      - name: Assert nothing was skipped
+        run: |
+          set -euo pipefail
+          summary="$(grep -E '^[0-9]+ passed, [0-9]+ failed, [0-9]+ skipped$' verify-pipeline.log | tail -1 || true)"
+          if [ -z "$summary" ]; then
+            echo "::error::no summary line found — verify-pipeline.sh did not run to completion"
+            exit 1
+          fi
+          skipped="$(printf '%s\n' "$summary" | awk '{print $5}')"
+          echo "summary: $summary"
+          if [ "$skipped" != "0" ]; then
+            echo "::error::$skipped check(s) skipped. With credentials present nothing should skip; a skip means a tool failed to install and this run verified less than it claims."
+            exit 1
+          fi
+
+      - name: Upload the transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-pipeline-transcript
+          path: verify-pipeline.log
           if-no-files-found: error

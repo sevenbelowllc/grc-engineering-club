@@ -1,0 +1,31 @@
+# Week 6 — vault preservation proof
+# Captured 2026-07-27T02:10:25Z against bucket grc-challenge-evidence-vault-f11fcaca
+
+## 1. Object Lock configuration on the vault
+{
+    "ObjectLockConfiguration": {
+        "ObjectLockEnabled": "Enabled",
+        "Rule": {
+            "DefaultRetention": {
+                "Mode": "COMPLIANCE",
+                "Days": 1
+            }
+        }
+    }
+}
+
+## 2. Retention on the uploaded evidence bundle
+{
+    "Retention": {
+        "Mode": "COMPLIANCE",
+        "RetainUntilDate": "2026-07-28T02:09:29.395000+00:00"
+    }
+}
+
+## 3. Hard-delete attempt on the locked version (as an ADMIN IAM user, not the CI role)
+$ aws s3api delete-object --version-id <VERSION_ID>
+  
+  aws: [ERROR]: An error occurred (AccessDenied) when calling the DeleteObject operation: Access Denied because object protected by object lock.
+
+## 4. Object survives the delete attempt
+RetainUntilDate: 2026-07-28T02:09:29.395000+00:00

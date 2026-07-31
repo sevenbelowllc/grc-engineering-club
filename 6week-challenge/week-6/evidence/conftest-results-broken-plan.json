@@ -1,0 +1,31 @@
+[
+	{
+		"filename": "plan-broken.json",
+		"namespace": "compliance.cm6_aws",
+		"successes": 1
+	},
+	{
+		"filename": "plan-broken.json",
+		"namespace": "compliance.sc28_aws",
+		"successes": 0,
+		"failures": [
+			{
+				"msg": "SC-28: aws_s3_bucket 'log' has no matching server-side encryption configuration. Remediation: add an aws_s3_bucket_server_side_encryption_configuration that references it.",
+				"metadata": {
+					"query": "data.compliance.sc28_aws.deny"
+				}
+			},
+			{
+				"msg": "SC-28: aws_s3_bucket 'primary' has no matching server-side encryption configuration. Remediation: add an aws_s3_bucket_server_side_encryption_configuration that references it.",
+				"metadata": {
+					"query": "data.compliance.sc28_aws.deny"
+				}
+			}
+		]
+	},
+	{
+		"filename": "plan-broken.json",
+		"namespace": "compliance.ac3_aws",
+		"successes": 1
+	}
+]

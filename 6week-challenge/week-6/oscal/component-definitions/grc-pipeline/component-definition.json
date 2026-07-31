@@ -1,0 +1,401 @@
+{
+  "component-definition": {
+    "uuid": "0e292e22-481b-4d41-a367-0cd421fa458c",
+    "metadata": {
+      "last-modified": "2026-07-27T02:38:42.566427+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "roles": [
+        {
+          "id": "provider",
+          "title": "Pipeline provider",
+          "description": "Builds and operates the pipeline, and stands behind the claims in this document."
+        }
+      ],
+      "parties": [
+        {
+          "uuid": "9aad2895-0323-472f-a7ba-246a5a482231",
+          "type": "organization",
+          "name": "Sevenbelow LLC",
+          "links": [
+            {
+              "href": "https://github.com/sevenbelowllc/grc-engineering-club",
+              "rel": "reference"
+            }
+          ]
+        }
+      ],
+      "responsible-parties": [
+        {
+          "role-id": "provider",
+          "party-uuids": [
+            "9aad2895-0323-472f-a7ba-246a5a482231"
+          ]
+        }
+      ],
+      "title": "GRC Engineering Pipeline \u2014 NIST SP 800-53 Rev 5 control implementation",
+      "remarks": "Machine-readable statement of the controls a six-week build of an AWS compliance pipeline implements, and of the evidence that proves each one. Every implemented-requirement names the Terraform resource that does the work, the Rego rule that gates it where one exists, and a signed evidence bundle that can be fetched and verified without contacting the author.\n\nCompanion profile: grc-pipeline-controls, which selects exactly these four control IDs from the NIST catalog."
+    },
+    "components": [
+      {
+        "uuid": "f096dbaf-6887-47ef-9c4f-9d95903b8aca",
+        "type": "service",
+        "title": "GRC Engineering Pipeline (Terraform, OPA/Conftest, cosign, AWS)",
+        "description": "A pipeline that provisions an AWS baseline with Terraform, proves its control state with Rego policy evaluated against the plan, gates every pull request on that proof, signs the resulting evidence with keyless cosign and records it in the Rekor transparency log, preserves it in an S3 Object Lock COMPLIANCE vault, and monitors the running account with CloudTrail and Security Hub.",
+        "purpose": "Make the control state of an AWS account something a third party can verify from published artifacts, without a meeting, a screenshot request, or trust in the operator.",
+        "props": [
+          {
+            "name": "cloud-provider",
+            "ns": "https://sevenbelow.com/ns/oscal",
+            "value": "aws"
+          },
+          {
+            "name": "iac-tool",
+            "ns": "https://sevenbelow.com/ns/oscal",
+            "value": "terraform"
+          },
+          {
+            "name": "policy-engine",
+            "ns": "https://sevenbelow.com/ns/oscal",
+            "value": "open-policy-agent"
+          }
+        ],
+        "links": [
+          {
+            "href": "https://github.com/sevenbelowllc/grc-engineering-club",
+            "rel": "reference",
+            "text": "Source repository. Every link in this document resolves inside it."
+          }
+        ],
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": [
+              "9aad2895-0323-472f-a7ba-246a5a482231"
+            ]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "fde039c3-e087-4077-8b50-1e190ad713a5",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "Controls this pipeline implements against NIST SP 800-53 Rev 5. Three of the four are enforced at plan time by the CI gate and cannot regress without failing a pull request; the fourth (AU-3) is verified at runtime, and its implemented-requirement says why.",
+            "implemented-requirements": [
+              {
+                "control-id": "sc-28",
+                "description": "Every S3 bucket in the baseline carries a server-side encryption configuration that sets AES256 as the default algorithm and enables an S3 bucket key. Encryption is a property of the bucket rather than of the caller, so it covers every object written by every principal \u2014 there is no code path that writes an unencrypted object.\n\nThe control is enforced before it can be violated. The Rego rule compliance.sc28_aws denies any aws_s3_bucket that no aws_s3_bucket_server_side_encryption_configuration references, and the CI gate runs it against the Terraform plan on every pull request. The rule matches by resource reference, not by bucket name, because the bucket name carries a random suffix that is unknown until apply; matching by value would pass a plan that a name-matching rule could not evaluate at all.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "ns": "http://csrc.nist.gov/ns/oscal",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.primary",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_server_side_encryption_configuration.log",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "compliance.sc28_aws",
+                    "class": "rego"
+                  },
+                  {
+                    "name": "verification-point",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "plan-time",
+                    "remarks": "Enforced by the CI gate before apply, not detected after the fact."
+                  },
+                  {
+                    "name": "evidence-signer-issuer",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "https://token.actions.githubusercontent.com",
+                    "class": "cosign"
+                  },
+                  {
+                    "name": "evidence-signer-identity",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "^https://github.com/sevenbelowllc/grc-engineering-club/\\.github/workflows/grc-gate\\.yml@refs/.*$",
+                    "class": "cosign",
+                    "remarks": "Regular expression, matched against the signing certificate's identity."
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-1/solution/main.tf#L46-L64",
+                    "rel": "reference",
+                    "text": "Terraform resources that implement the control."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-3/policies/sc28_encryption_aws.rego",
+                    "rel": "reference",
+                    "text": "Rego rule the CI gate evaluates against the plan."
+                  },
+                  {
+                    "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Signed evidence bundle (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 public, fetchable without credentials."
+                  },
+                  {
+                    "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "The same bundle in an S3 Object Lock COMPLIANCE vault (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 undeletable by any principal, including the account root, until its retention expires."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/verify-evidence.sh",
+                    "rel": "verification",
+                    "media-type": "text/x-shellscript",
+                    "text": "Verifier for the linked bundle. Checks integrity (recomputed SHA-256 against the sidecar), authenticity and timeliness (cosign verify-blob against a pinned signer identity and the Rekor transparency log), and preservation (Object Lock retention on the vault object). Prints CHAIN INTACT only when every executed check passes."
+                  }
+                ],
+                "uuid": "7c3478e7-5924-45fe-b643-2b6d1ba7a750"
+              },
+              {
+                "control-id": "ac-3",
+                "description": "Public access is blocked on every bucket with all four S3 public-access flags set to true: block_public_acls, block_public_policy, ignore_public_acls and restrict_public_buckets. All four are set because they close four independent paths to public exposure \u2014 blocking new public ACLs does nothing about an ACL that already exists, and blocking a public bucket policy does nothing about ACLs at all. Three of four is a bucket that is still reachable.\n\ncompliance.ac3_aws denies any aws_s3_bucket that no public access block references, and then reads the block's planned values to confirm all four flags are literally true. A block that exists but sets only some flags fails the gate rather than passing it on the strength of being present.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "ns": "http://csrc.nist.gov/ns/oscal",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.primary",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_public_access_block.log",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "compliance.ac3_aws",
+                    "class": "rego"
+                  },
+                  {
+                    "name": "verification-point",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "plan-time",
+                    "remarks": "Enforced by the CI gate before apply, not detected after the fact."
+                  },
+                  {
+                    "name": "evidence-signer-issuer",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "https://token.actions.githubusercontent.com",
+                    "class": "cosign"
+                  },
+                  {
+                    "name": "evidence-signer-identity",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "^https://github.com/sevenbelowllc/grc-engineering-club/\\.github/workflows/grc-gate\\.yml@refs/.*$",
+                    "class": "cosign",
+                    "remarks": "Regular expression, matched against the signing certificate's identity."
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-1/solution/main.tf#L90-L104",
+                    "rel": "reference",
+                    "text": "Terraform resources that implement the control."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-3/policies/ac3_no_public_aws.rego",
+                    "rel": "reference",
+                    "text": "Rego rule the CI gate evaluates against the plan."
+                  },
+                  {
+                    "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Signed evidence bundle (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 public, fetchable without credentials."
+                  },
+                  {
+                    "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "The same bundle in an S3 Object Lock COMPLIANCE vault (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 undeletable by any principal, including the account root, until its retention expires."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/verify-evidence.sh",
+                    "rel": "verification",
+                    "media-type": "text/x-shellscript",
+                    "text": "Verifier for the linked bundle. Checks integrity (recomputed SHA-256 against the sidecar), authenticity and timeliness (cosign verify-blob against a pinned signer identity and the Rekor transparency log), and preservation (Object Lock retention on the vault object). Prints CHAIN INTACT only when every executed check passes."
+                  }
+                ],
+                "uuid": "df8e512e-d8dc-4006-b39f-fc4d3c8c0770"
+              },
+              {
+                "control-id": "au-3",
+                "description": "A multi-region CloudTrail trail records management events from every region into a dedicated log bucket, with log-file validation enabled. CloudTrail records carry the fields AU-3 asks for \u2014 event type and time, the source of the request, the resource acted on, and the outcome \u2014 and log-file validation adds an hourly signed digest so a deleted or altered log file is detectable rather than merely absent.\n\nUnlike the other three controls in this set, AU-3 is verified at runtime rather than at plan time. See the remarks.",
+                "remarks": "AU-3 is the one control here with no Rego rule, and that is a deliberate statement about what a plan can prove. A Terraform plan can show that an aws_cloudtrail resource will be created with the right arguments. It cannot show that the trail is delivering records, because delivery is a runtime property of a system that does not exist yet at plan time. Writing a plan-time rule for AU-3 would produce a green gate that attests to nothing.\n\nThe evidence linked here is therefore captured output from the running account \u2014 aws cloudtrail get-trail-status showing IsLogging true with recent log and digest delivery timestamps, alongside AWS Security Hub findings for the same account. That is a narrower claim than the plan-time controls make (it is true of one moment, not of every future pull request) and a stronger one (it is about the system, not about the intent). The gap between the two is the assurance boundary this pipeline documents rather than papers over.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "ns": "http://csrc.nist.gov/ns/oscal",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_cloudtrail.this",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "verification-point",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "runtime",
+                    "remarks": "No plan-time policy rule. Delivery is observable only against a running trail."
+                  },
+                  {
+                    "name": "evidence-signer-issuer",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "https://accounts.google.com",
+                    "class": "cosign"
+                  },
+                  {
+                    "name": "evidence-signer-identity",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "^dkramer@sevenbelow\\.com$",
+                    "class": "cosign",
+                    "remarks": "Regular expression, matched against the signing certificate's identity."
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-5/terraform/cloudtrail.tf#L51-L58",
+                    "rel": "reference",
+                    "text": "Terraform resource that implements the control."
+                  },
+                  {
+                    "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-5/evidence/week5-evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Signed evidence bundle (week 5: live AWS trail status, Security Hub findings, replica listing) \u2014 public, fetchable without credentials."
+                  },
+                  {
+                    "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/week5-evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "The same bundle in an S3 Object Lock COMPLIANCE vault (week 5: live AWS trail status, Security Hub findings, replica listing) \u2014 undeletable by any principal, including the account root, until its retention expires."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/verify-evidence.sh",
+                    "rel": "verification",
+                    "media-type": "text/x-shellscript",
+                    "text": "Verifier for the linked bundle. Checks integrity (recomputed SHA-256 against the sidecar), authenticity and timeliness (cosign verify-blob against a pinned signer identity and the Rekor transparency log), and preservation (Object Lock retention on the vault object). Prints CHAIN INTACT only when every executed check passes."
+                  }
+                ],
+                "uuid": "b178aa75-8ab4-4aca-bb83-da00d4850701"
+              },
+              {
+                "control-id": "cm-6",
+                "description": "Configuration settings are enforced two ways. The AWS provider's default_tags block stamps Project, Environment, ManagedBy and ComplianceScope onto every taggable resource, so a resource added later cannot silently miss them \u2014 the tags are a property of the provider, not of the author's memory. Versioning is enabled on the buckets so prior object states stay recoverable and auditable.\n\ncompliance.cm6_aws denies any resource whose plan emits a tags_all or tags map missing one of the four required tags. It uses the provider's computed tags_all attribute as the definition of 'taggable' rather than a hardcoded list of resource types: tags_all appears on exactly the taggable types, so the rule stays correct as the provider adds resources, and a hardcoded list would drift into silently skipping them.",
+                "props": [
+                  {
+                    "name": "implementation-status",
+                    "ns": "http://csrc.nist.gov/ns/oscal",
+                    "value": "implemented"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "provider.aws.default_tags",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_versioning.primary",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "terraform-resource",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "aws_s3_bucket_versioning.log",
+                    "class": "aws-resource"
+                  },
+                  {
+                    "name": "policy-package",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "compliance.cm6_aws",
+                    "class": "rego"
+                  },
+                  {
+                    "name": "verification-point",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "plan-time",
+                    "remarks": "Enforced by the CI gate before apply, not detected after the fact."
+                  },
+                  {
+                    "name": "evidence-signer-issuer",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "https://token.actions.githubusercontent.com",
+                    "class": "cosign"
+                  },
+                  {
+                    "name": "evidence-signer-identity",
+                    "ns": "https://sevenbelow.com/ns/oscal",
+                    "value": "^https://github.com/sevenbelowllc/grc-engineering-club/\\.github/workflows/grc-gate\\.yml@refs/.*$",
+                    "class": "cosign",
+                    "remarks": "Regular expression, matched against the signing certificate's identity."
+                  }
+                ],
+                "links": [
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-1/solution/main.tf#L16-L23",
+                    "rel": "reference",
+                    "text": "Provider default_tags block \u2014 the tagging half of the control."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-1/solution/main.tf#L70-L84",
+                    "rel": "reference",
+                    "text": "Bucket versioning \u2014 the recoverable-configuration half."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-3/policies/cm6_required_tags_aws.rego",
+                    "rel": "reference",
+                    "text": "Rego rule the CI gate evaluates against the plan."
+                  },
+                  {
+                    "href": "https://raw.githubusercontent.com/sevenbelowllc/grc-engineering-club/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/evidence/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "Signed evidence bundle (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 public, fetchable without credentials."
+                  },
+                  {
+                    "href": "s3://grc-challenge-evidence-vault-f11fcaca/manual/2026-07-26/evidence.tar.gz",
+                    "rel": "evidence",
+                    "media-type": "application/gzip",
+                    "text": "The same bundle in an S3 Object Lock COMPLIANCE vault (week 4: terraform plan + conftest verdicts, signed in CI) \u2014 undeletable by any principal, including the account root, until its retention expires."
+                  },
+                  {
+                    "href": "https://github.com/sevenbelowllc/grc-engineering-club/blob/1d97be7f0763223db7a42b805375c6302fd24e14/6week-challenge/week-4/verify-evidence.sh",
+                    "rel": "verification",
+                    "media-type": "text/x-shellscript",
+                    "text": "Verifier for the linked bundle. Checks integrity (recomputed SHA-256 against the sidecar), authenticity and timeliness (cosign verify-blob against a pinned signer identity and the Rekor transparency log), and preservation (Object Lock retention on the vault object). Prints CHAIN INTACT only when every executed check passes."
+                  }
+                ],
+                "uuid": "d1673fe4-4b6f-44be-aad3-ca85cc1cc69d"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

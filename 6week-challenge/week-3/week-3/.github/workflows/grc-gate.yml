@@ -1,0 +1,46 @@
+# =============================================================================
+# UNMODIFIED STARTER SKELETON — NOT THE WORKING GATE. THIS FILE NEVER RUNS.
+#
+# GitHub Actions only discovers workflows under .github/workflows/ at the
+# repository ROOT. This copy is nested inside 6week-challenge/week-3/week-3/,
+# so it is inert by construction — it has never executed and cannot.
+#
+# The live, complete gate is at the repo root:
+#     .github/workflows/grc-gate.yml
+#
+# It is kept here only so the starting point stays visible beside the finished
+# result. The TODOs below are the challenge's, not outstanding work.
+# See ../../README.md for the full explanation.
+# =============================================================================
+
+# grc-gate: run the policy gate on every pull request.
+# This is a skeleton. The steps marked TODO are yours to write.
+name: grc-gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  grc-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO: install Conftest (pin a version, do not use latest).
+
+      # TODO: run your three policy namespaces against the committed plan.json.
+      #       Write the results to evidence/conftest-results.json.
+      #       Fail the job if any namespace reports a failure.
+
+      # TODO: upload evidence/ as a build artifact, with `if: always()` so the
+      #       evidence is saved even when the gate fails. That is the point of
+      #       CI evidence: it survives the failure.
+
+      # STRETCH: instead of a committed plan.json, assume an AWS role via OIDC
+      #          (no stored keys) and generate the plan in CI. See the brief.
