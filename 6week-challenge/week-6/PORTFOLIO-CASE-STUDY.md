@@ -65,6 +65,15 @@ Evidence over adjectives. Every row is a link to something that ran.
 | The converter fails when it should | [Three guard cases, exit 3, nothing written](evidence/converter-guards.txt) |
 | The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30605526989](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30605526989) passed the fourteen-check verifier with zero skips, against live AWS |
 
+The row that matters most, seen rather than linked — [PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7),
+the intentional SC-28 break, as a reviewer sees it:
+
+![PR #7: checks failing on the intentional control break](evidence/failed-grc-gate-red-pr-evidence-p1.png)
+
+![The gate's comment: SC-28 denies both buckets, with remediation — "with branch protection on, this merge is blocked until it is fixed"](evidence/failed-grc-gate-red-pr-evidence-p2.png)
+
+![The merge box: the required grc-gate check failing, and the merge blocked](evidence/failed-grc-gate-red-pr-evidence-p3.png)
+
 ---
 
 ## Three decisions worth stealing
