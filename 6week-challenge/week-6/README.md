@@ -17,12 +17,14 @@ catalog -> profile -> component -> evidence URI -> verified bundle
 From the repository root:
 
 ```bash
-./verify-pipeline.sh     # all six checks, one verdict
+./verify-pipeline.sh     # every eligibility check, one verdict
 ./traverse.sh            # walk the graph, following only the documents
 ```
 
-Latest local run: **12 passed, 0 failed, 0 skipped**
-([transcript](evidence/pipeline-verification.txt)).
+Latest local run: **14 passed, 0 failed, 0 skipped**
+([transcript](evidence/pipeline-verification.txt)). On a machine that is not
+mine the ceiling is **12 passed, 1 skipped** — the two vault checks read a
+private bucket — and the verdict says `INCOMPLETE` rather than pretending.
 
 Full writeup: **[SUBMISSION.md](SUBMISSION.md)**.
 

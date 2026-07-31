@@ -9,8 +9,15 @@
 # because checking it is a twenty-minute chore.
 #
 # This makes it one command. A reviewer with the repo cloned and the tools
-# installed types ./verify-pipeline.sh and gets PASS or FAIL — no walkthrough,
+# installed types ./verify-pipeline.sh and gets a verdict — no walkthrough,
 # no screenshots, no author present.
+#
+# The verdict is PASS, FAIL, or INCOMPLETE. Only the author or CI holds
+# credentials for the private evidence vault, so on any other machine the two
+# vault checks report SKIP and the ceiling is 12 passed, 1 skipped —
+# INCOMPLETE, not PASS. That is the design, not a defect: an unreadable vault
+# is not a verified vault. The full 14-check PASS lives in the committed
+# transcript at week-6/evidence/pipeline-verification.txt.
 #
 # Checks that cannot run in the current environment are reported as SKIP and
 # named, never silently passed. A skipped check is a check nobody has done.
@@ -124,8 +131,14 @@ else
   #
   # Anyone who wants the check runs `terraform init` themselves and re-runs.
   for d in week-1/solution week-3/terraform week-5/terraform week-6/terraform; do
-    [ -d "$CH/$d" ] || continue
-    if [ ! -d "$CH/$d/.terraform" ]; then
+    # A directory that is missing altogether is a defect in the repository, not
+    # a fact about this machine — the opposite of the uninitialised case below.
+    # It used to be `continue`, which made the check disappear: not PASS, not
+    # FAIL, not SKIP, and the total quietly dropped from 14 to 13. A check that
+    # vanishes is worse than one that fails.
+    if [ ! -d "$CH/$d" ]; then
+      bad "$d — directory is missing from the repository"
+    elif [ ! -d "$CH/$d/.terraform" ]; then
       skip "$d" "not initialised on this machine — run 'terraform init' in 6week-challenge/$d to include this check"
     elif out="$( cd "$CH/$d" && terraform validate -no-color 2>&1 )"; then
       ok "$d"
@@ -148,10 +161,20 @@ else
   else
     bad "compliant plan was denied by the gate"
   fi
-  if ( cd "$CH/week-3" && conftest test --all-namespaces -p policies plan-broken.json >/dev/null 2>&1 ); then
+  # A non-zero exit alone is not a denial. conftest also exits 1 for a missing
+  # plan file and for a .rego that fails to parse — verified, both exit 1 —
+  # and reporting either as "the gate denied it" would pass the negative
+  # control on a broken toolchain. So require a named rule in the output, the
+  # same way the fresh-plan check below names what fired.
+  if out="$( cd "$CH/week-3" && conftest test --all-namespaces -p policies plan-broken.json 2>&1 )"; then
     bad "broken plan PASSED the gate — the policy is not enforcing"
   else
-    ok "broken plan is denied by the gate"
+    rules="$(echo "$out" | grep -oE 'compliance\.[a-z0-9_]+' | sort -u | tr '\n' ' ')"
+    if [ -n "$rules" ]; then
+      ok "broken plan is denied by the gate — ${rules% }"
+    else
+      bad "conftest failed on the broken plan without naming a rule — a tooling error is not a denial: $(echo "$out" | grep -v '^$' | tail -2 | tr '\n' ' ')"
+    fi
   fi
 
   # Both checks above evaluate a plan that was generated once, by hand, and
@@ -245,7 +268,16 @@ if ! need trestle; then
 else
   if out="$( cd "$CH/week-6/oscal" && trestle validate -a 2>&1 )"; then
     n="$(echo "$out" | grep -c '^VALID')"
-    ok "all $n OSCAL documents VALID"
+    # trestle validate -a exits 0 on an empty workspace — verified — so the
+    # exit code alone would let this print "all 0 OSCAL documents VALID" over
+    # a directory that validated nothing. The build has 5 documents; a floor
+    # rather than an exact match, so adding a sixth does not break the verifier
+    # while a gutted workspace fails loudly.
+    if [ "$n" -ge 5 ]; then
+      ok "all $n OSCAL documents VALID"
+    else
+      bad "trestle exited 0 but only $n document(s) validated — expected at least 5; an empty workspace validates vacuously"
+    fi
   else
     bad "trestle validate — $(echo "$out" | grep -v '^VALID' | head -2 | tr '\n' ' ')"
   fi

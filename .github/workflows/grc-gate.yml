@@ -385,7 +385,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # verify-pipeline: run the repo's own verifier, in CI, on every pull request.
   #
-  # verify-pipeline.sh is the single verdict this repo gives on itself — twelve
+  # verify-pipeline.sh is the single verdict this repo gives on itself — fourteen
   # checks from `terraform validate` through to a full profile-to-evidence
   # traversal. Until now it only ran when a person remembered to run it, and
   # three bugs in the week-6 session were caught solely by running it on a
@@ -494,7 +494,7 @@ jobs:
       # verify-pipeline.sh exits 0 when checks are SKIPPED, which is right for a
       # laptop with a partial toolchain and wrong for CI, where a skip means an
       # install step broke. Trusting the exit code alone would let this job go
-      # green having run six checks instead of twelve. So the summary line is
+      # green having run six checks instead of fourteen. So the summary line is
       # parsed and a non-zero skip count fails the build.
       - name: Assert nothing was skipped
         run: |

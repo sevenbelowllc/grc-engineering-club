@@ -16,10 +16,15 @@ git clone https://github.com/sevenbelowllc/grc-engineering-club
 cd grc-engineering-club && ./verify-pipeline.sh
 ```
 
-Latest run: **12 checks, 12 passed, 0 skipped**
-([transcript](evidence/pipeline-verification.txt)) — the two vault checks need
-AWS credentials for the evidence account and report `skipped` without them,
-which is the honest verdict rather than a pass.
+Latest run: **14 checks, 14 passed, 0 skipped**
+([transcript](evidence/pipeline-verification.txt)). Run it yourself and the
+script verifies whatever your toolchain allows and names every check it cannot
+run. The ceiling for anyone but me is **12 passed, 1 skipped**: the two vault
+checks read a private Object Lock bucket, and an unreadable vault is reported
+as `skipped` — the verdict says `INCOMPLETE`, because a check that did not run
+is not a check that passed. The
+[Debian transcript](evidence/pipeline-verification-linux.txt) shows exactly
+that run.
 
 ---
 
@@ -58,7 +63,16 @@ Evidence over adjectives. Every row is a link to something that ran.
 | The OSCAL is schema-valid | `trestle validate -a` → **5 documents VALID** ([in the transcript](evidence/pipeline-verification.txt)) |
 | An assessor can traverse it | [`./traverse.sh` → **4/4 controls** walked from profile to verified evidence](evidence/chain-intact-four-legs.txt) |
 | The converter fails when it should | [Three guard cases, exit 3, nothing written](evidence/converter-guards.txt) |
-| The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30422410397](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30422410397) passed 12/12 with zero skips, against live AWS |
+| The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30605526989](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30605526989) passed the fourteen-check verifier with zero skips, against live AWS |
+
+The row that matters most, seen rather than linked — [PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7),
+the intentional SC-28 break, as a reviewer sees it:
+
+![PR #7: checks failing on the intentional control break](evidence/failed-grc-gate-red-pr-evidence-p1.png)
+
+![The gate's comment: SC-28 denies both buckets, with remediation — "with branch protection on, this merge is blocked until it is fixed"](evidence/failed-grc-gate-red-pr-evidence-p2.png)
+
+![The merge box: the required grc-gate check failing, and the merge blocked](evidence/failed-grc-gate-red-pr-evidence-p3.png)
 
 ---
 
@@ -142,7 +156,7 @@ The same principle earned its keep a second time, in an unrelated subsystem.
 `verify-pipeline.sh` exits `0` when checks are *skipped* — right for a laptop
 with a partial toolchain, wrong for CI, where a skip means an install step
 broke. A CI job that trusted the exit code alone would go green having run six
-checks instead of twelve. So the job parses the summary line and fails the build
+checks instead of fourteen. So the job parses the summary line and fails the build
 on a non-zero skip count. Two guards, two subsystems, one failure mode: a green
 signal that quietly covers less than it appears to.
 
@@ -210,7 +224,7 @@ being an incident and starts being a build error, which nobody escalates,
 nobody writes a ticket for, and nobody has to explain to an auditor.
 
 The argument applies to the verification as much as to the controls. The
-twelve-check verdict this page opens with used to be something I remembered to
+fourteen-check verdict this page opens with used to be something I remembered to
 run; it now runs on every pull request and is itself a required status check
 alongside the gate. The check that proves the pipeline works is no longer
 allowed to be the one nobody ran.
@@ -243,4 +257,6 @@ cd grc-engineering-club
 ./traverse.sh           # profile → component → evidence → CHAIN INTACT
 ```
 
-No AWS account required. No cooperation from me required. That was the point.
+No AWS account required — the two vault checks report themselves skipped and
+the verdict says `INCOMPLETE`, because a check that did not run is not a check
+that passed. No cooperation from me required. That was the point.

@@ -1,5 +1,5 @@
 # verify-pipeline.sh — every eligibility check for the six-week build.
-# Captured 2026-07-27T04:29:33Z. Reproduce: ./verify-pipeline.sh
+# Captured 2026-07-31T04:49:32Z. Reproduce: ./verify-pipeline.sh
 
 
 1. terraform validate — the infrastructure parses and type-checks
@@ -10,7 +10,9 @@
 
 2. conftest — the policy gate denies what it is supposed to deny
   [PASS] compliant plan passes the gate
-  [PASS] broken plan is denied by the gate
+  [PASS] broken plan is denied by the gate — compliance.sc28_aws
+  [PASS] current terraform source produces a compliant plan
+  [PASS] committed plan.json matches the terraform source it came from
 
 3. trestle validate — the OSCAL documents are schema-valid
   [PASS] all 5 OSCAL documents VALID
@@ -20,14 +22,14 @@
   [PASS] week-5 runtime evidence — 2 leg(s) verified, CHAIN INTACT
 
 5. vault preservation — the evidence cannot be deleted
-  [PASS] evidence.tar.gz — COMPLIANCE lock until 2026-07-28T02:09:29.395000+00:00
-  [PASS] week5-evidence.tar.gz — COMPLIANCE lock until 2026-07-28T02:26:45.813000+00:00
+  [PASS] evidence.tar.gz — COMPLIANCE lock until 2026-08-28T03:53:20.927000+00:00
+  [PASS] week5-evidence.tar.gz — COMPLIANCE lock until 2026-08-28T03:53:22.259000+00:00
 
 6. traversal — profile to verified evidence, following only the documents
   [PASS] 4/4 control(s) walked from profile to verified evidence
 
 ------------------------------------------------------------------------
-12 passed, 0 failed, 0 skipped
+14 passed, 0 failed, 0 skipped
 
 PIPELINE PASS — every check ran and every check passed
 
