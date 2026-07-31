@@ -10,7 +10,7 @@ anyone.
 Every claim on this page is checkable by running something. Start with:
 
 ```bash
-./verify-pipeline.sh     # from the repo root — all six checks, one verdict
+./verify-pipeline.sh     # from the repo root — every eligibility check, one verdict
 ./traverse.sh            # profile -> component -> evidence -> CHAIN INTACT
 ```
 
@@ -135,7 +135,10 @@ cd ../.. && ./traverse.sh
 The preservation leg of `verify-evidence.sh` reads Object Lock retention from a
 private vault, so without AWS credentials it reports `skipped` rather than
 passing. That is the intended behaviour: an unreadable vault is not a verified
-vault.
+vault. `./verify-pipeline.sh` works the same way — its two vault checks skip
+without credentials, so the best outcome on any machine but the author's is
+**12 passed, 1 skipped → `PIPELINE INCOMPLETE`**, never a pass that covers less
+than it appears to.
 
 ### Portability is a requirement, not a hope
 
@@ -150,7 +153,7 @@ It is verified by running, not asserted. This is the same
 #   image      Debian GNU/Linux 12 (bookworm) (aarch64)
 #   bash       5.2.15(1)-release    jq  jq-1.6    coreutils  GNU 9.1
 ...
-10 passed, 0 failed, 1 skipped
+12 passed, 0 failed, 1 skipped
 ```
 
 Full transcript:

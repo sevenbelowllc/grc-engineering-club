@@ -154,7 +154,7 @@ rather than by hand, so every signature in the chain is a workflow signature.
 ## 8. The verifier's own transcript gets none of the four properties
 
 `verify-pipeline.sh` runs on every pull request as a required status check, and
-its twelve-check verdict is the artifact a reader is most likely to treat as
+its fourteen-check verdict is the artifact a reader is most likely to treat as
 proof that everything else here works. It is also the least protected thing in
 the build.
 

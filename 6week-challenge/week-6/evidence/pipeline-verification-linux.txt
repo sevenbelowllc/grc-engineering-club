@@ -12,8 +12,9 @@
 #   terraform  Terraform v1.9.8
 #   conftest   Conftest: 0.68.2
 #   trestle    Trestle version v4.2.0 based on OSCAL version 1.2.1
-#   cosign     GitVersion:    v3.1.2
-#   captured   2026-07-27T04:30:04Z
+#   cosign     GitVersion: v3.1.2
+#   captured   2026-07-31T04:52:50Z
+
 
 
 1. terraform validate — the infrastructure parses and type-checks
@@ -24,7 +25,9 @@
 
 2. conftest — the policy gate denies what it is supposed to deny
   [PASS] compliant plan passes the gate
-  [PASS] broken plan is denied by the gate
+  [PASS] broken plan is denied by the gate — compliance.sc28_aws
+  [PASS] current terraform source produces a compliant plan
+  [PASS] committed plan.json matches the terraform source it came from
 
 3. trestle validate — the OSCAL documents are schema-valid
   [PASS] all 5 OSCAL documents VALID
@@ -41,9 +44,15 @@
   [PASS] 4/4 control(s) walked from profile to verified evidence
 
 ------------------------------------------------------------------------
-10 passed, 0 failed, 1 skipped
+12 passed, 0 failed, 1 skipped
 
-PIPELINE PASS (with 1 check(s) skipped — see above)
-A skipped check is a check nobody has done. Install the missing tools for a complete run.
+PIPELINE INCOMPLETE — 12 check(s) passed, 1 could not run
+A skipped check is a check nobody has done. This run did not establish the claim.
+
+Two full runs, every check executed, are committed and readable without installing anything:
+  6week-challenge/week-6/evidence/pipeline-verification.txt        (macOS)
+  6week-challenge/week-6/evidence/pipeline-verification-linux.txt  (Linux container)
+and .github/workflows/grc-gate.yml runs this same command on every pull request
+with the full toolchain, failing the build if even one check skips.
 
 exit=0

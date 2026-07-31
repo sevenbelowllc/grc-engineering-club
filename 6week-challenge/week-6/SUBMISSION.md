@@ -172,8 +172,8 @@ and a decoration.
 
 | File | What it shows |
 |---|---|
-| [`evidence/pipeline-verification.txt`](evidence/pipeline-verification.txt) | `./verify-pipeline.sh` — 12 checks, 12 passed, 0 skipped |
-| [`evidence/pipeline-verification-linux.txt`](evidence/pipeline-verification-linux.txt) | The same run in a Debian 12 container — bash 5.2, jq 1.6, GNU coreutils. 10 passed, 0 failed, 1 skipped (no AWS CLI, correctly reported as a skip rather than a pass) |
+| [`evidence/pipeline-verification.txt`](evidence/pipeline-verification.txt) | `./verify-pipeline.sh` — 14 checks, 14 passed, 0 skipped |
+| [`evidence/pipeline-verification-linux.txt`](evidence/pipeline-verification-linux.txt) | The same run in a Debian 12 container — bash 5.2, jq 1.6, GNU coreutils. 12 passed, 0 failed, 1 skipped (no AWS CLI, correctly reported as a skip rather than a pass) |
 | [`evidence/chain-intact-four-legs.txt`](evidence/chain-intact-four-legs.txt) | All four legs green: integrity, authenticity, timeliness, preservation |
 | [`evidence/vault-preservation-proof.txt`](evidence/vault-preservation-proof.txt) | COMPLIANCE Object Lock config, retention, and a hard delete refused with **admin** credentials |
 | [`evidence/converter-guards.txt`](evidence/converter-guards.txt) | The denying gate, both mapping guards, and the determinism diff |
@@ -204,7 +204,7 @@ Both, or the claim is weaker than it looks.
 - [x] Every `href` in the documents verified to resolve — 13/13 HTTP links `200`
 - [x] The case study is written: [`PORTFOLIO-CASE-STUDY.md`](PORTFOLIO-CASE-STUDY.md)
 - [x] The full pipeline passes end to end: `terraform validate`, `conftest`,
-      `trestle validate`, `cosign verify`, vault preservation — 12/12
+      `trestle validate`, `cosign verify`, vault preservation — 14/14
 - [x] What the pipeline does **not** prove is written down:
       [`ASSURANCE-BOUNDARY.md`](ASSURANCE-BOUNDARY.md)
 - [x] OSCAL documents signed — [`sign-oscal.sh`](sign-oscal.sh), verified
@@ -212,6 +212,6 @@ Both, or the claim is weaker than it looks.
 - [x] Vault upload proven in a CI run — run `30414290874` signed and uploaded
       `runs/30414290874/`, COMPLIANCE-locked; admin `delete-object` refused
 - [x] `verify-pipeline` runs on every pull request and is a required status
-      check — the twelve-check verdict now blocks the merge instead of waiting
+      check — the fourteen-check verdict now blocks the merge instead of waiting
       for somebody to remember to run it
 - [ ] Case study published to the portfolio site
