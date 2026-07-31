@@ -454,6 +454,32 @@ jobs:
           role-to-assume: ${{ vars.AWS_GATE_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
+      # verify-pipeline.sh deliberately does NOT run `terraform init` for you.
+      # `terraform validate` needs provider schemas, and initialising on the
+      # reader's behalf means several hundred megabytes of download per directory
+      # on a machine that never asked for it — and, when the download fails,
+      # a `[FAIL] week-1/solution` that reads as broken infrastructure rather than
+      # as a cold cache. So the script skips uninitialised directories and says so.
+      #
+      # CI is the machine that HAS agreed to do the work, so it does the init here.
+      # This is the same split as the `0 skipped` assertion below: the script
+      # reports honestly, the job decides how much is good enough. It is also why
+      # the assertion is load-bearing rather than ceremonial — it caught exactly
+      # this, five checks quietly skipping, the first time the script changed.
+      #
+      # One shared plugin cache across all four directories and the temp copy that
+      # plan-from-source.sh initialises, so the provider is fetched once per run
+      # rather than five times.
+      - name: Initialise the terraform working directories
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/tf-plugin-cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for d in week-1/solution week-3/terraform week-5/terraform week-6/terraform; do
+            terraform -chdir="6week-challenge/$d" init -backend=false -input=false -no-color
+          done
+
       # The same command a human runs. No CI-only flags: a verifier that behaves
       # differently in CI is a second thing to trust.
       - name: Run the full verification

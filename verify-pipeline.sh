@@ -32,17 +32,33 @@ TRANSCRIPT="$CH/week-6/evidence/pipeline-verification.txt"
 # Re-exec rather than threading a flag through every printf: the transcript is
 # then provably the same output a reader gets on their own terminal, because it
 # is literally that output.
+#
+# The run is its own pipeline so that PIPESTATUS[0] is the script and nothing else.
+# Three shapes that look equivalent are not:
+#
+#   { ...; "$0"; echo; echo "exit=$?"; } | ...   $? is the blank echo. Always 0.
+#   exit "${PIPESTATUS[0]}"  on that group       the group's status is that same
+#                                                echo. Always 0.
+#   { "$0" || rc=$?; } | ...                     the group is the left side of a
+#                                                pipeline, so it runs in a subshell
+#                                                and rc never reaches the parent.
+#
+# All three record exit=0 for a failing run, which is the one thing a transcript
+# of a compliance verifier must never do. Hence the header, the run and the footer
+# as three separate commands, appending, with the status read off the run itself.
 if [ "${1:-}" = "--transcript" ]; then
   mkdir -p "$(dirname "$TRANSCRIPT")"
   {
     echo "# verify-pipeline.sh — every eligibility check for the six-week build."
     echo "# Captured $(date -u +%Y-%m-%dT%H:%M:%SZ). Reproduce: ./verify-pipeline.sh"
     echo
-    "$0"
-    echo
-    echo "exit=$?"
-  } 2>&1 | sed $'s/\033\\[[0-9;]*m//g' | tee "$TRANSCRIPT"
-  exit "${PIPESTATUS[0]}"
+  } | tee "$TRANSCRIPT"
+
+  "$0" 2>&1 | sed $'s/\033\\[[0-9;]*m//g' | tee -a "$TRANSCRIPT"
+  rc="${PIPESTATUS[0]}"
+
+  { echo; echo "exit=$rc"; } | tee -a "$TRANSCRIPT"
+  exit "$rc"
 fi
 
 # --- reporting vocabulary ---------------------------------------------------
@@ -90,10 +106,28 @@ section "1. terraform validate — the infrastructure parses and type-checks"
 if ! need terraform; then
   skip "terraform validate" "terraform is not installed"
 else
+  # This check does NOT run `terraform init`, and that is the point.
+  #
+  # `terraform validate` needs provider schemas, so it needs an initialised
+  # directory — and the obvious way to get one is to init on the reader's behalf.
+  # That is the wrong trade. init downloads several hundred megabytes of AWS
+  # provider, per directory, against a registry the reader may not be able to
+  # reach, to establish the weakest claim in this file: that the HCL parses.
+  # Nobody running someone else's verifier has agreed to that.
+  #
+  # It is also a category error in the reporting. When the download failed, this
+  # printed `[FAIL] week-1/solution` — telling a reviewer the infrastructure is
+  # broken when the true statement is "this machine has not fetched a provider".
+  # An uninitialised working directory is a fact about the machine, not a defect
+  # in the repository, and the same reasoning that makes a missing cosign a SKIP
+  # in section 6 makes this one too.
+  #
+  # Anyone who wants the check runs `terraform init` themselves and re-runs.
   for d in week-1/solution week-3/terraform week-5/terraform week-6/terraform; do
     [ -d "$CH/$d" ] || continue
-    if out="$( cd "$CH/$d" && terraform init -backend=false -input=false -no-color >/dev/null 2>&1 \
-               && terraform validate -no-color 2>&1 )"; then
+    if [ ! -d "$CH/$d/.terraform" ]; then
+      skip "$d" "not initialised on this machine — run 'terraform init' in 6week-challenge/$d to include this check"
+    elif out="$( cd "$CH/$d" && terraform validate -no-color 2>&1 )"; then
       ok "$d"
     else
       bad "$d — $(echo "$out" | head -3 | tr '\n' ' ')"
@@ -118,6 +152,88 @@ else
     bad "broken plan PASSED the gate — the policy is not enforcing"
   else
     ok "broken plan is denied by the gate"
+  fi
+
+  # Both checks above evaluate a plan that was generated once, by hand, and
+  # committed. That makes them a statement about two files rather than about the
+  # infrastructure next to them. Remove the public access block from
+  # week-3/terraform/main.tf and nothing here notices: `terraform validate` in
+  # section 1 only parses and type-checks, and conftest re-reads the same frozen
+  # fixture. Both required status checks go green and the change merges.
+  #
+  # So: regenerate the plan from the source as it stands right now and run the
+  # same policies against that. plan-from-source.sh does it in a temp copy with
+  # provider credential validation switched off, which needs no AWS account and
+  # keeps README.md's "Nothing needs an AWS account" true.
+  PLAN_SRC="$CH/week-3/plan-from-source.sh"
+  TF_SRC="$CH/week-3/terraform"
+  # Reuse the providers week-3/terraform already has rather than fetching a
+  # second copy. plan-from-source.sh inits a temp directory, and .terraform/
+  # providers happens to use the exact layout TF_PLUGIN_CACHE_DIR expects, so
+  # pointing one at the other makes that init resolve locally and download
+  # nothing. Without this, running the verifier costs a fresh provider download
+  # on top of whatever section 1 already needed.
+  if [ -d "$TF_SRC/.terraform/providers" ]; then
+    export TF_PLUGIN_CACHE_DIR="$TF_SRC/.terraform/providers"
+  fi
+  if ! need terraform; then
+    skip "current source produces a compliant plan" "terraform is not installed, so the plan cannot be regenerated"
+  elif [ ! -d "$TF_SRC/.terraform" ]; then
+    # Same rule as section 1: this check will not initialise someone else's
+    # working directory to make itself runnable.
+    skip "current source produces a compliant plan" "week-3/terraform is not initialised — run 'terraform init' there to include this check"
+  elif [ ! -x "$PLAN_SRC" ]; then
+    skip "current source produces a compliant plan" "plan-from-source.sh not found or not executable"
+  else
+    # A directory, so the file can be named plan.json. conftest picks its parser
+    # from the extension, and `mktemp -t grc-fresh-plan` produces a random suffix
+    # like .4JmDlwDq5s — which conftest reads as the parser name and rejects with
+    # "unknown parser". The failure looks exactly like a policy failure.
+    FRESHDIR="$(mktemp -d)"
+    FRESH="$FRESHDIR/plan.json"
+    if ! out="$("$PLAN_SRC" "$TF_SRC" "$FRESH" 2>&1)"; then
+      bad "current source produces a compliant plan — $(echo "$out" | tail -2 | tr '\n' ' ')"
+    elif out="$( cd "$CH/week-3" && conftest test --all-namespaces -p policies "$FRESH" 2>&1 )"; then
+      ok "current terraform source produces a compliant plan"
+    else
+      # Name the rule that fired: "the plan is non-compliant" sends a reader
+      # through three namespaces, "compliance.ac3_aws" sends them to one. Fall
+      # back to the raw output when nothing matches, because conftest also exits
+      # non-zero for reasons that are not policy failures at all, and a reason
+      # this check cannot name is still a reason the reader needs to see.
+      rules="$(echo "$out" | grep -oE 'compliance\.[a-z0-9_]+' | sort -u | tr '\n' ' ')"
+      bad "current terraform source produces a NON-compliant plan — ${rules:-$(echo "$out" | grep -v '^$' | tail -2 | tr '\n' ' ')}"
+    fi
+    rm -rf "$FRESHDIR"
+  fi
+
+  # The committed plan.json is not just a fixture — it is signed evidence, inside
+  # week-4/evidence/evidence.tar.gz. The check above proves the source is
+  # compliant; this one proves the committed evidence was generated from that
+  # same source. A plan.json left behind by an edited main.tf is a bundle that
+  # attests to infrastructure nobody is running.
+  #
+  # Regenerate with:
+  #   week-3/plan-from-source.sh --write-hash week-3/terraform week-3/plan-source.sha256
+  # and re-sign the week-4 bundle, because changing the source invalidates both.
+  #
+  # Deliberately NOT gated on terraform. --write-hash only reads the .tf files
+  # and shells out to sha256sum/shasum, so this still answers on a machine that
+  # cannot generate a plan — which is exactly the machine most likely to be
+  # looking at a stale fixture.
+  HASH_FILE="$CH/week-3/plan-source.sha256"
+  if [ ! -x "$PLAN_SRC" ]; then
+    skip "plan.json matches the terraform source" "plan-from-source.sh not found or not executable"
+  elif [ ! -f "$HASH_FILE" ]; then
+    skip "plan.json matches the terraform source" "no plan-source.sha256 recorded"
+  else
+    expected="$(cat "$HASH_FILE")"
+    actual="$("$PLAN_SRC" --write-hash "$TF_SRC" /dev/stdout 2>/dev/null | head -1)"
+    if [ "$expected" = "$actual" ]; then
+      ok "committed plan.json matches the terraform source it came from"
+    else
+      bad "committed plan.json is STALE — week-3/terraform has changed since it was generated (and since the week-4 bundle was signed)"
+    fi
   fi
 fi
 
@@ -185,10 +301,22 @@ fi
 # ---------------------------------------------------------------------------
 section "6. traversal — profile to verified evidence, following only the documents"
 # ---------------------------------------------------------------------------
+# cosign is gated here, not left to fail inside traverse.sh. The traversal ends in
+# the same verify-evidence.sh that check 4 runs, so a machine without cosign cannot
+# complete either one — and check 4 already calls that SKIP. Without this guard the
+# same missing binary reports SKIP at check 4 and FAIL at check 6, and the FAIL
+# takes the whole run to PIPELINE FAIL on a machine where nothing is actually wrong.
+#
+# The gate belongs here rather than in verify-evidence.sh, which fails loudly on a
+# missing cosign on purpose (see the comment above its command -v). A verifier that
+# shrugs when its verifier is absent is the bug; a caller that declines to claim a
+# result it cannot obtain is not.
 if [ ! -x "$HERE/traverse.sh" ]; then
   skip "traversal" "traverse.sh not found or not executable"
 elif ! need jq; then
   skip "traversal" "traverse.sh needs jq"
+elif ! need cosign; then
+  skip "traversal" "traverse.sh ends in a cosign verify-blob; cosign is not installed"
 else
   if out="$("$HERE/traverse.sh" 2>&1)"; then
     # traverse.sh emits ANSI for its own terminal output; strip it before quoting.
@@ -212,9 +340,31 @@ if [ "$FAIL" -gt 0 ]; then
   exit 1
 fi
 
+# A skipped check is not a passing check, and the word in the last line is the
+# part people quote. On a machine with none of the tools installed this file used
+# to print "PIPELINE PASS (with 9 check(s) skipped)" over a body reading
+# "0 passed, 0 failed" — a pass verdict for a run that verified nothing. That is
+# the exact shape of failure this repository exists to argue against, sitting in
+# its own summary line.
+#
+# INCOMPLETE rather than FAIL, because nothing here is broken: the reader is
+# missing tools, not looking at broken infrastructure. And exit 0 rather than 1,
+# because the exit code answers "is something wrong with this repository?" and
+# the honest answer is still no. CI does not rely on this code — it parses the
+# counts line above and fails on any non-zero skip (.github/workflows/grc-gate.yml).
 if [ "$SKIP" -gt 0 ]; then
-  title "PIPELINE PASS (with $SKIP check(s) skipped — see above)"
-  printf '%s\n' "A skipped check is a check nobody has done. Install the missing tools for a complete run."
+  if [ "$PASS" -eq 0 ]; then
+    title "PIPELINE INCOMPLETE — nothing was verified on this machine"
+  else
+    title "PIPELINE INCOMPLETE — $PASS check(s) passed, $SKIP could not run"
+  fi
+  printf '%s\n' "A skipped check is a check nobody has done. This run did not establish the claim."
+  echo
+  printf '%s\n' "Two full runs, every check executed, are committed and readable without installing anything:"
+  printf '%s\n' "  6week-challenge/week-6/evidence/pipeline-verification.txt        (macOS)"
+  printf '%s\n' "  6week-challenge/week-6/evidence/pipeline-verification-linux.txt  (Linux container)"
+  printf '%s\n' "and .github/workflows/grc-gate.yml runs this same command on every pull request"
+  printf '%s\n' "with the full toolchain, failing the build if even one check skips."
   exit 0
 fi
 

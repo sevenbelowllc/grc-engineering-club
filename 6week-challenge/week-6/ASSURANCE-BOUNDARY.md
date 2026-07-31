@@ -216,6 +216,50 @@ timeliness claim survives one operator disappearing. Both cost money, which is
 the honest trade being made here — the four legs are free precisely because one
 of them is somebody else's donated infrastructure.
 
+## 10. The plan the gate reads is generated against no account
+
+`verify-pipeline.sh` regenerates the Terraform plan from source on every run and
+evaluates the policies against that, rather than against the committed
+`plan.json`. That closes a real hole — for a while, editing `main.tf` to remove
+the public access block left every required check green, because `terraform
+validate` only parses and type-checks and conftest re-read a fixture generated
+by hand in July. It does not close as much as it looks like it closes.
+
+The regenerated plan is produced in a temp copy with
+`skip_credentials_validation`, `skip_requesting_account_id`,
+`skip_metadata_api_check` and `skip_region_validation` all set, pointed at
+placeholder credentials. That is what makes the check runnable by a stranger
+with no AWS account, which is the property the whole repository is built around.
+The cost is that the plan is a plan against **nothing**. Terraform is not asking
+any account whether this would work.
+
+So the check proves:
+
+> *The committed source, evaluated in isolation, describes infrastructure that
+> satisfies the three plan-time controls.*
+
+and not:
+
+> *Applying this source to the target account would succeed, or would produce
+> those resources.*
+
+Everything an account would have objected to is invisible here: a bucket name
+already taken, a service control policy or permission boundary that forbids the
+call, a region where something is not offered, a quota. Those surface at
+`terraform apply` and this check will have said PASS.
+
+This is narrower than limit 1 and stacks on top of it. Limit 1 is that a plan is
+an intention rather than a running resource. This one is that the intention is
+being checked against an empty room.
+
+**What would close it:** the `grc-gate-oidc` job already generates the plan with
+real read-only credentials through GitHub OIDC, which does exercise account-side
+validation. It is currently **not** in the required status check set, so it can
+fail without blocking a merge. Requiring it would make the credentialed plan
+load-bearing; the trade is that the gate then depends on the AWS role existing
+and the OIDC trust holding, which is why the credential-free check is the one
+wired into `verify-pipeline.sh`.
+
 ---
 
 ## Why write this down
