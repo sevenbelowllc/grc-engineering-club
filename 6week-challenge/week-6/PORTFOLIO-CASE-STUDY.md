@@ -260,3 +260,12 @@ cd grc-engineering-club
 No AWS account required — the two vault checks report themselves skipped and
 the verdict says `INCOMPLETE`, because a check that did not run is not a check
 that passed. No cooperation from me required. That was the point.
+
+## What I learned
+
+The biggest thing I learned was working with OSCAL and Rego and putting them
+into action. I really love the policy-as-code methodology: OSCAL's Lego-like
+models (Catalog, Profile, Component Definition, System Security Plan, Assessment
+Plan, Assessment Results, POA&M) snap it all together, and Rego evaluates the
+reality. This challenge really opened my eyes to Policy as Code and I can't wait
+to start implementing it everywhere I can!
