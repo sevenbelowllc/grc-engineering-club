@@ -178,6 +178,7 @@ and a decoration.
 | [`evidence/vault-preservation-proof.txt`](evidence/vault-preservation-proof.txt) | COMPLIANCE Object Lock config, retention, and a hard delete refused with **admin** credentials |
 | [`evidence/converter-guards.txt`](evidence/converter-guards.txt) | The denying gate, both mapping guards, and the determinism diff |
 | [`evidence/conftest-results-broken-plan.json`](evidence/conftest-results-broken-plan.json) | Raw conftest output the negative control was generated from |
+| [`evidence/failed-grc-gate-red-pr-evidence-p1.png`](evidence/failed-grc-gate-red-pr-evidence-p1.png) ([p2](evidence/failed-grc-gate-red-pr-evidence-p2.png), [p3](evidence/failed-grc-gate-red-pr-evidence-p3.png)) | [PR #7](https://github.com/sevenbelowllc/grc-engineering-club/pull/7) as a reviewer sees it: `Checks failing`, SC-28 denying both buckets with remediation text, and the required `grc-gate` check blocking the merge |
 | [`oscal/`](oscal/) | The five documents |
 
 ## Control mapping
