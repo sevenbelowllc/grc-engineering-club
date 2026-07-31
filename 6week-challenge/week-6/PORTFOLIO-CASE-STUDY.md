@@ -21,7 +21,7 @@ Latest run: **14 checks, 14 passed, 0 skipped**
 script verifies whatever your toolchain allows and names every check it cannot
 run. The ceiling for anyone but me is **12 passed, 1 skipped**: the two vault
 checks read a private Object Lock bucket, and an unreadable vault is reported
-as `skipped` — the verdict says `INCOMPLETE`, because a check that did not run
+as one `skipped` check — the verdict says `INCOMPLETE`, because a check that did not run
 is not a check that passed. The
 [Debian transcript](evidence/pipeline-verification-linux.txt) shows exactly
 that run.
