@@ -63,7 +63,7 @@ Evidence over adjectives. Every row is a link to something that ran.
 | The OSCAL is schema-valid | `trestle validate -a` → **5 documents VALID** ([in the transcript](evidence/pipeline-verification.txt)) |
 | An assessor can traverse it | [`./traverse.sh` → **4/4 controls** walked from profile to verified evidence](evidence/chain-intact-four-legs.txt) |
 | The converter fails when it should | [Three guard cases, exit 3, nothing written](evidence/converter-guards.txt) |
-| The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30422410397](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30422410397) passed with zero skips, against live AWS |
+| The verifier itself is gated | `verify-pipeline` is a **required status check** on `main` — [run 30605526989](https://github.com/sevenbelowllc/grc-engineering-club/actions/runs/30605526989) passed the fourteen-check verifier with zero skips, against live AWS |
 
 ---
 
